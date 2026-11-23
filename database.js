@@ -6,7 +6,6 @@ function headersSupabase() {
   return {
     "Content-Type": "application/json",
     apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
     Prefer: "return=representation"
   };
 }
@@ -75,6 +74,8 @@ async function cargarEstadoRemoto() {
     if (resCuentas.ok) {
       const filasCuentas = await resCuentas.json();
       estado.cuentas = filasCuentas.map(mapearCuentaDesdeBD);
+    } else {
+      console.error("Error leyendo cuentas:", resCuentas.status, await resCuentas.text());
     }
 
     if (resRelaciones.ok) {
@@ -140,10 +141,11 @@ async function registrarCuentaRemota(datosCuenta) {
 
   if (!respCuenta.ok) {
     const textoError = await respCuenta.text();
+    console.error("Error al crear cuenta en Supabase:", respCuenta.status, textoError);
     throw new Error(textoError || "No se pudo crear la cuenta");
   }
 
-  await fetch(`${SUPABASE_URL}/rest/v1/relaciones`, {
+  const respRel = await fetch(`${SUPABASE_URL}/rest/v1/relaciones`, {
     method: "POST",
     headers: headersSupabase(),
     body: JSON.stringify({
@@ -155,20 +157,27 @@ async function registrarCuentaRemota(datosCuenta) {
     })
   });
 
+  if (!respRel.ok) {
+    console.error("Error al crear relaciones iniciales:", respRel.status, await respRel.text());
+  }
+
   localStorage.setItem(CLAVE_SESION_LOCAL, String(nuevaCuenta.id));
   return nuevaCuenta;
 }
 
 async function actualizarCuentaRemota(cuenta) {
-  await fetch(`${SUPABASE_URL}/rest/v1/cuentas?id=eq.${cuenta.id}`, {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/cuentas?id=eq.${cuenta.id}`, {
     method: "PATCH",
     headers: headersSupabase(),
     body: JSON.stringify(mapearCuentaHaciaBD(cuenta))
   });
+  if (!resp.ok) {
+    console.error("Error actualizando cuenta:", resp.status, await resp.text());
+  }
 }
 
 async function guardarRelacionRemota(usuarioId, rel) {
-  await fetch(`${SUPABASE_URL}/rest/v1/relaciones?on_conflict=usuario_id`, {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/relaciones?on_conflict=usuario_id`, {
     method: "POST",
     headers: {
       ...headersSupabase(),
@@ -182,10 +191,13 @@ async function guardarRelacionRemota(usuarioId, rel) {
       conversaciones: rel.conversaciones || {}
     })
   });
+  if (!resp.ok) {
+    console.error("Error guardando relación:", resp.status, await resp.text());
+  }
 }
 
 async function crearSesionRemota(sesion) {
-  await fetch(`${SUPABASE_URL}/rest/v1/sesiones`, {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/sesiones`, {
     method: "POST",
     headers: headersSupabase(),
     body: JSON.stringify({
@@ -198,14 +210,19 @@ async function crearSesionRemota(sesion) {
       asistentes: sesion.asistentes || []
     })
   });
+  if (!resp.ok) {
+    console.error("Error creando sesión:", resp.status, await resp.text());
+  }
 }
 
 async function actualizarAsistentesSesionRemota(sesionId, asistentes) {
-  await fetch(`${SUPABASE_URL}/rest/v1/sesiones?id=eq.${Number(sesionId)}`, {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/sesiones?id=eq.${Number(sesionId)}`, {
     method: "PATCH",
     headers: headersSupabase(),
     body: JSON.stringify({ asistentes })
   });
+  if (!resp.ok) {
+    console.error("Error actualizando asistentes:", resp.status, await resp.text());
+  }
 }
-
 
