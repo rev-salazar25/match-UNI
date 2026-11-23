@@ -67,8 +67,10 @@ body {
   gap: 0.5rem;
 }
 
-.btn-topbar-ghost,
-.btn-topbar-solid {
+.btn-topbar-ghost {
+  background: #ffffff;
+  border: 1px solid var(--borde);
+  color: var(--tinta);
   border-radius: 999px;
   padding: 0.38rem 0.8rem;
   font-size: 0.8rem;
@@ -76,19 +78,10 @@ body {
   cursor: pointer;
 }
 
-.btn-topbar-ghost {
-  background: #ffffff;
-  border: 1px solid var(--borde);
-  color: var(--tinta);
+.btn-topbar-ghost[hidden] {
+  display: none;
 }
 
-.btn-topbar-solid {
-  background: var(--tinta);
-  border: 1px solid var(--tinta);
-  color: #ffffff;
-}
-
-/* Contenedor general */
 .escenario-movil {
   max-width: 1180px;
   margin: 0 auto;
@@ -107,7 +100,6 @@ body {
   flex-direction: column;
 }
 
-/* Vistas: ocultas por defecto, visibles solo con .activa */
 .vista {
   display: none;
   flex-direction: column;
@@ -120,7 +112,6 @@ body {
   display: flex;
 }
 
-/* Barra de navegación: fija abajo en móvil */
 .barra-inferior {
   background: var(--barra-oscura);
   display: flex;
@@ -173,7 +164,6 @@ body {
   white-space: nowrap;
 }
 
-/* Diseño de escritorio (PC) */
 @media (min-width: 860px) {
   .escenario-movil {
     padding: 1.25rem 1rem 2.5rem;
@@ -255,7 +245,8 @@ body {
 }
 
 .panel-editor[hidden],
-.form-plan[hidden] {
+.form-plan[hidden],
+.bloque-app[hidden] {
   display: none;
 }
 
@@ -486,7 +477,6 @@ body {
   font-weight: 600;
 }
 
-/* MATCHES */
 .brand-header-app {
   display: flex;
   justify-content: space-between;
@@ -645,7 +635,6 @@ body {
   color: var(--naranja-oscuro);
 }
 
-/* CHATS */
 .chat-top {
   display: flex;
   justify-content: space-between;
@@ -842,7 +831,6 @@ body {
   cursor: pointer;
 }
 
-/* HORARIOS */
 .matriz-wrap {
   background: var(--tarjeta);
   border: 1px solid var(--borde);
@@ -913,7 +901,6 @@ body {
   color: var(--tinta-suave);
 }
 
-/* SESIONES */
 .lista-sesiones {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
