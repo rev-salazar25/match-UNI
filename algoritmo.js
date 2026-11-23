@@ -12,11 +12,6 @@ const CURSOS_BASE = [
 const DIAS_SEMANA = ["L", "M", "M", "J", "V"];
 const TURNOS_DIA = ["Mañana", "Tarde", "Noche"];
 
-/**
- * Calcula la compatibilidad académica entre el usuario actual (A) y un candidato (B).
- * Regla principal: si A necesita cursos y B domina todos los cursos que A necesita,
- * la cobertura de ayuda hacia A es del 100% (aunque B no domine los cursos de A).
- */
 function calcularCompatibilidad(perfilA, candidatoB) {
   if (!perfilA || !candidatoB || perfilA.id === candidatoB.id) {
     return null;
@@ -27,23 +22,17 @@ function calcularCompatibilidad(perfilA, candidatoB) {
   const dominaB = new Set(candidatoB.cursosDomina || []);
   const necesitaB = [...new Set(candidatoB.cursosNecesita || [])];
 
-  // Cursos que A necesita y que B sí domina (ayuda de B hacia A)
   const bEnsenaAA = necesitaA.filter((curso) => dominaB.has(curso));
-
-  // Cursos que B necesita y que A sí domina (ayuda de A hacia B)
   const aEnsenaAB = necesitaB.filter((curso) => dominaA.has(curso));
 
-  // Cursos en común (sumando dominados/necesitados compartidos)
   const setTodosA = new Set([...dominaA, ...necesitaA]);
   const setTodosB = new Set([...dominaB, ...necesitaB]);
   const enComun = [...setTodosA].filter((curso) => setTodosB.has(curso));
 
-  // Porcentaje de compatibilidad basado en cuánto cubre B de lo que A necesita
   let porcentaje = 0;
   if (necesitaA.length > 0) {
     porcentaje = Math.round((bEnsenaAA.length / necesitaA.length) * 100);
   } else if (aEnsenaAB.length > 0) {
-    // Si A no marcó cursos que necesita pero sí puede enseñar a B, damos compatibilidad parcial por apoyo
     porcentaje = 50;
   }
 
@@ -98,3 +87,4 @@ function compararDisponibilidades(slotsA, slotsB) {
 
   return { bloques, coincidentes };
 }
+
