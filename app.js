@@ -5,9 +5,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const vistas = document.querySelectorAll(".vista");
   const navItems = document.querySelectorAll(".nav-item");
+  const barraNav = document.getElementById("barra-nav-principal");
+  const indicadorCuentaTop = document.getElementById("indicador-cuenta-top");
+  const btnCerrarSesion = document.getElementById("btn-cerrar-sesion");
 
   function obtenerUsuarioActual() {
-    return estado.usuarios.find((u) => u.id === estado.perfilActualId) || estado.usuarios[0];
+    if (!estado.sesionActivaId) return null;
+    return estado.cuentas.find((c) => c.id === estado.sesionActivaId) || null;
+  }
+
+  function obtenerOtrosUsuarios(usuarioId) {
+    return (estado.cuentas || []).filter((c) => c.id !== usuarioId);
+  }
+
+  function obtenerRelaciones(usuarioId) {
+    if (!estado.relacionesPorUsuario[usuarioId]) {
+      estado.relacionesPorUsuario[usuarioId] = {
+        matchesIds: [],
+        descartadosIds: [],
+        chatActivoId: null,
+        conversaciones: {}
+      };
+    }
+    return estado.relacionesPorUsuario[usuarioId];
   }
 
   function obtenerIniciales(nombre) {
@@ -19,10 +39,28 @@ document.addEventListener("DOMContentLoaded", () => {
       .join("");
   }
 
+  function sincronizarSesionUI() {
+    const u = obtenerUsuarioActual();
+    if (!u) {
+      indicadorCuentaTop.textContent = "Sin sesión";
+      btnCerrarSesion.hidden = true;
+      barraNav.hidden = true;
+      renderAcceso();
+      cambiarVista("vista-acceso");
+    } else {
+      indicadorCuentaTop.textContent = u.nombre;
+      btnCerrarSesion.hidden = false;
+      barraNav.hidden = false;
+      renderPerfil();
+      cambiarVista("vista-perfil");
+    }
+  }
+
   function cambiarVista(idVista) {
     vistas.forEach((v) => v.classList.toggle("activa", v.id === idVista));
     navItems.forEach((b) => b.classList.toggle("activa", b.dataset.vista === idVista));
 
+    if (idVista === "vista-acceso") renderAcceso();
     if (idVista === "vista-perfil") renderPerfil();
     if (idVista === "vista-matches") renderMatches();
     if (idVista === "vista-chats") renderChats();
@@ -31,7 +69,60 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   navItems.forEach((btn) => {
-    btn.addEventListener("click", () => cambiarVista(btn.dataset.vista));
+    btn.addEventListener("click", () => {
+      if (!obtenerUsuarioActual()) {
+        cambiarVista("vista-acceso");
+        return;
+      }
+      cambiarVista(btn.dataset.vista);
+    });
+  });
+
+  // --- ACCESO / CREAR CUENTA / CERRAR SESIÓN ---
+  const formCrearCuenta = document.getElementById("form-crear-cuenta");
+  const bloqueCuentasExistentes = document.getElementById("bloque-cuentas-existentes");
+  const listaCuentasExistentes = document.getElementById("lista-cuentas-existentes");
+
+  function renderAcceso() {
+    if (estado.cuentas && estado.cuentas.length > 0) {
+      bloqueCuentasExistentes.hidden = false;
+      listaCuentasExistentes.innerHTML = "";
+      estado.cuentas.forEach((cuenta) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "pill-contacto";
+        btn.textContent = `${cuenta.nombre} (${cuenta.ciclo})`;
+        btn.addEventListener("click", () => {
+          estado.sesionActivaId = cuenta.id;
+          guardarEstado(estado);
+          sincronizarSesionUI();
+        });
+        listaCuentasExistentes.appendChild(btn);
+      });
+    } else {
+      bloqueCuentasExistentes.hidden = true;
+    }
+  }
+
+  formCrearCuenta.addEventListener("submit", (e) => {
+    e.preventDefault();
+    crearNuevaCuentaDesdeCero(estado, {
+      nombre: document.getElementById("reg-nombre").value,
+      procedencia: document.getElementById("reg-procedencia").value,
+      ciclo: document.getElementById("reg-ciclo").value,
+      carrera: document.getElementById("reg-carrera").value,
+      contacto: document.getElementById("reg-contacto").value,
+      categoria: document.getElementById("reg-categoria").value,
+      bio: document.getElementById("reg-bio").value
+    });
+    formCrearCuenta.reset();
+    sincronizarSesionUI();
+  });
+
+  btnCerrarSesion.addEventListener("click", () => {
+    estado.sesionActivaId = null;
+    guardarEstado(estado);
+    sincronizarSesionUI();
   });
 
   // --- VISTA PERFIL ---
@@ -73,22 +164,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function abrirEditorPerfil() {
     const u = obtenerUsuarioActual();
-    document.getElementById("input-nombre").value = u.nombre || "";
-    document.getElementById("input-procedencia").value = u.procedencia || "";
-    document.getElementById("input-ciclo").value = u.ciclo || "";
-    document.getElementById("select-carrera").value = u.carrera || "Ing. de Sistemas";
-    document.getElementById("input-contacto").value = u.contacto || "";
-    document.getElementById("input-bio").value = u.bio || "";
+    if (!u) return;
     poblarCheckboxesEditor(u);
     errorFormPerfil.hidden = true;
     panelEditor.hidden = false;
   }
 
   document.getElementById("btn-editar-perfil-rapido").addEventListener("click", abrirEditorPerfil);
-  document.getElementById("btn-abrir-registro").addEventListener("click", () => {
-    cambiarVista("vista-perfil");
-    abrirEditorPerfil();
-  });
   document.getElementById("btn-cancelar-edicion").addEventListener("click", () => {
     panelEditor.hidden = true;
   });
@@ -96,32 +178,20 @@ document.addEventListener("DOMContentLoaded", () => {
   formPerfil.addEventListener("submit", (e) => {
     e.preventDefault();
     const u = obtenerUsuarioActual();
-    const nombre = document.getElementById("input-nombre").value.trim();
-    const procedencia = document.getElementById("input-procedencia").value.trim().toUpperCase();
-    const ciclo = document.getElementById("input-ciclo").value.trim();
-    const carrera = document.getElementById("select-carrera").value;
-    const contacto = document.getElementById("input-contacto").value.trim();
-    const bio = document.getElementById("input-bio").value.trim();
+    if (!u) return;
 
     const domina = [...checksDomina.querySelectorAll("input:checked")].map((i) => i.value);
     const necesita = [...checksNecesita.querySelectorAll("input:checked")].map((i) => i.value);
 
     const repetidos = domina.filter((c) => necesita.includes(c));
     if (repetidos.length > 0) {
-      errorFormPerfil.textContent = `No marques el mismo curso en ambos lados: ${repetidos.join(", ")}`;
+      errorFormPerfil.textContent = `No marques el mismo curso en domino y necesito: ${repetidos.join(", ")}`;
       errorFormPerfil.hidden = false;
       return;
     }
 
-    u.nombre = nombre;
-    u.procedencia = procedencia;
-    u.ciclo = ciclo;
-    u.carrera = carrera;
-    u.contacto = contacto;
-    u.bio = bio;
     u.cursosDomina = domina;
     u.cursosNecesita = necesita;
-
     guardarEstado(estado);
     panelEditor.hidden = true;
     renderPerfil();
@@ -129,6 +199,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderPerfil() {
     const u = obtenerUsuarioActual();
+    if (!u) return;
+
     tarjetaPerfil.innerHTML = `
       <div class="perfil-cabecera">
         <div class="avatar-iniciales">${obtenerIniciales(u.nombre)}</div>
@@ -142,21 +214,28 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="pill-dato">${u.ciclo}</span>
         <span class="pill-dato">${u.contacto}</span>
       </div>
-      <p class="perfil-bio">${u.bio || ""}</p>
+      <p class="perfil-bio">${u.bio || "Cuenta nueva iniciada desde 0."}</p>
     `;
 
-    const listaUnica = [...new Set([...(u.cursosDomina || []), ...(u.cursosNecesita || [])])];
-    badgeCursosCount.textContent = `${listaUnica.length} activos`;
+    const dom = u.cursosDomina || [];
+    const nec = u.cursosNecesita || [];
+    const totalCursos = new Set([...dom, ...nec]).size;
+    badgeCursosCount.textContent = `${totalCursos} cursos`;
     chipsCursos.innerHTML = "";
 
-    if (listaUnica.length === 0) {
-      chipsCursos.innerHTML = `<span class="ayuda-mini">Sin cursos seleccionados aún.</span>`;
+    if (totalCursos === 0) {
+      chipsCursos.innerHTML = `<span class="ayuda-mini">0 cursos seleccionados. Toca "Configurar cursos" para elegir cuáles dominas y cuáles necesitas.</span>`;
     } else {
-      listaUnica.forEach((curso) => {
+      dom.forEach((c) => {
         const chip = document.createElement("span");
-        const esDomina = (u.cursosDomina || []).includes(curso);
-        chip.className = `chip-interes ${esDomina ? "domina" : ""}`;
-        chip.textContent = curso;
+        chip.className = "chip-interes domina";
+        chip.textContent = `Domino: ${c}`;
+        chipsCursos.appendChild(chip);
+      });
+      nec.forEach((c) => {
+        const chip = document.createElement("span");
+        chip.className = "chip-interes";
+        chip.textContent = `Necesito: ${c}`;
         chipsCursos.appendChild(chip);
       });
     }
@@ -199,21 +278,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderMatches() {
     const u = obtenerUsuarioActual();
-    const excluidos = [...(estado.matchesIds || []), ...(estado.descartadosIds || [])];
-    const candidatos = obtenerCandidatosOrdenados(u, estado.usuarios, categoriaActual, excluidos);
+    if (!u) return;
+
+    const rel = obtenerRelaciones(u.id);
+    const otros = obtenerOtrosUsuarios(u.id);
+    const excluidos = [...(rel.matchesIds || []), ...(rel.descartadosIds || [])];
+    const candidatos = obtenerCandidatosOrdenados(u, otros, categoriaActual, excluidos);
     contadorCandidatos.textContent = `${candidatos.length} candidatos`;
+
+    if (otros.length === 0) {
+      contenedorCandidato.innerHTML = `
+        <div class="vacio-app">
+          <p><strong>0 usuarios registrados todavía.</strong></p>
+          <p>Nadie más ha creado su cuenta aún. Puedes cerrar sesión y crear otra cuenta para probar el cruce de cursos.</p>
+        </div>
+      `;
+      return;
+    }
 
     if (candidatos.length === 0) {
       contenedorCandidato.innerHTML = `
         <div class="vacio-app">
-          <p>No hay más perfiles pendientes en <strong>${categoriaActual}</strong>.</p>
-          <button type="button" id="btn-reiniciar-cola" class="btn-naranja">Volver a mostrar perfiles</button>
+          <p>No hay candidatos pendientes en <strong>${categoriaActual}</strong>.</p>
+          <button type="button" id="btn-reiniciar-cola" class="btn-naranja">Volver a mostrar perfiles descartados</button>
         </div>
       `;
       const btnReinicio = document.getElementById("btn-reiniciar-cola");
       if (btnReinicio) {
         btnReinicio.addEventListener("click", () => {
-          estado.descartadosIds = [];
+          rel.descartadosIds = [];
           guardarEstado(estado);
           renderMatches();
         });
@@ -223,12 +316,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const actual = candidatos[0];
     const cand = actual.candidato;
-    const etiquetas = [...new Set([...(cand.cursosDomina || []), ...(cand.cursosNecesita || [])])];
 
     contenedorCandidato.innerHTML = `
       <article class="tarjeta-candidato">
         <div class="portada-candidato">
-          <span class="badge-coincidencias">${actual.enComun.length} intereses en común</span>
+          <span class="badge-coincidencias">${actual.porcentaje}% compatibilidad</span>
           <span class="badge-categoria-card">${cand.categoria}</span>
           <span>${obtenerIniciales(cand.nombre)}</span>
         </div>
@@ -239,8 +331,16 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="candidato-rol">${cand.carrera}</div>
           <p class="candidato-bio">${cand.bio || ""}</p>
+          <div class="candidato-bio">
+            <strong>Te puede enseñar (${actual.porcentaje}%):</strong>
+            ${actual.bEnsenaAA.length > 0 ? actual.bEnsenaAA.join(", ") : "Ninguno de tus cursos necesitados"}
+          </div>
+          <div class="candidato-bio">
+            <strong>Tú le puedes enseñar:</strong>
+            ${actual.aEnsenaAB.length > 0 ? actual.aEnsenaAB.join(", ") : "—"}
+          </div>
           <div class="chips-wrap">
-            ${etiquetas.map((et) => `<span class="chip-interes">${et}</span>`).join("")}
+            ${(cand.cursosDomina || []).map((et) => `<span class="chip-interes domina">Domina: ${et}</span>`).join("")}
           </div>
         </div>
       </article>
@@ -252,24 +352,24 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     document.getElementById("btn-swipe-x").addEventListener("click", () => {
-      estado.descartadosIds.push(cand.id);
+      rel.descartadosIds.push(cand.id);
       guardarEstado(estado);
       renderMatches();
     });
 
     document.getElementById("btn-swipe-check").addEventListener("click", () => {
-      if (!estado.matchesIds.includes(cand.id)) {
-        estado.matchesIds.push(cand.id);
+      if (!rel.matchesIds.includes(cand.id)) {
+        rel.matchesIds.push(cand.id);
       }
-      if (!estado.conversaciones[cand.id]) {
-        estado.conversaciones[cand.id] = [
+      if (!rel.conversaciones[cand.id]) {
+        rel.conversaciones[cand.id] = [
           {
             tipo: "ellos",
-            texto: `¡Hola ${u.nombre.split(" ")[0]}! Hacemos match en ${cand.categoria.toLowerCase()}. ¿Coordinamos?`
+            texto: `¡Hola ${u.nombre.split(" ")[0]}! Tenemos ${actual.porcentaje}% de compatibilidad en cursos. ¿Coordinamos?`
           }
         ];
       }
-      estado.chatActivoId = cand.id;
+      rel.chatActivoId = cand.id;
       guardarEstado(estado);
       cambiarVista("vista-chats");
     });
@@ -288,15 +388,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   formPlan.addEventListener("submit", (e) => {
     e.preventDefault();
+    const u = obtenerUsuarioActual();
+    if (!u) return;
+    const rel = obtenerRelaciones(u.id);
     const lugar = document.getElementById("input-plan-lugar").value.trim();
     const hora = document.getElementById("input-plan-hora").value.trim();
-    if (!lugar || !hora || !estado.chatActivoId) return;
+    if (!lugar || !hora || !rel.chatActivoId) return;
 
-    if (!estado.conversaciones[estado.chatActivoId]) {
-      estado.conversaciones[estado.chatActivoId] = [];
+    if (!rel.conversaciones[rel.chatActivoId]) {
+      rel.conversaciones[rel.chatActivoId] = [];
     }
 
-    estado.conversaciones[estado.chatActivoId].push({
+    rel.conversaciones[rel.chatActivoId].push({
       tipo: "plan",
       lugar,
       hora,
@@ -312,15 +415,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   formMensaje.addEventListener("submit", (e) => {
     e.preventDefault();
+    const u = obtenerUsuarioActual();
+    if (!u) return;
+    const rel = obtenerRelaciones(u.id);
     const input = document.getElementById("input-mensaje");
     const texto = input.value.trim();
-    if (!texto || !estado.chatActivoId) return;
+    if (!texto || !rel.chatActivoId) return;
 
-    if (!estado.conversaciones[estado.chatActivoId]) {
-      estado.conversaciones[estado.chatActivoId] = [];
+    if (!rel.conversaciones[rel.chatActivoId]) {
+      rel.conversaciones[rel.chatActivoId] = [];
     }
 
-    estado.conversaciones[estado.chatActivoId].push({
+    rel.conversaciones[rel.chatActivoId].push({
       tipo: "mio",
       texto
     });
@@ -331,19 +437,24 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function renderChats() {
-    const contactos = estado.usuarios.filter((u) => estado.matchesIds.includes(u.id));
+    const u = obtenerUsuarioActual();
+    if (!u) return;
+    const rel = obtenerRelaciones(u.id);
+    const otros = obtenerOtrosUsuarios(u.id);
+    const contactos = otros.filter((x) => (rel.matchesIds || []).includes(x.id));
+
     if (contactos.length === 0) {
-      headerChat.innerHTML = `<strong>Sin matches aún</strong>`;
+      headerChat.innerHTML = `<strong>0 matches activos</strong>`;
       listaContactosChat.innerHTML = "";
-      mensajesBox.innerHTML = `<div class="vacio-app">Acepta un perfil en <strong>Matches</strong> para iniciar una conversación.</div>`;
+      mensajesBox.innerHTML = `<div class="vacio-app">Tu lista de chats está vacía. Cuando hagas match con alguien en <strong>Matches</strong> aparecerá aquí.</div>`;
       return;
     }
 
-    if (!contactos.some((c) => c.id === estado.chatActivoId)) {
-      estado.chatActivoId = contactos[0].id;
+    if (!contactos.some((c) => c.id === rel.chatActivoId)) {
+      rel.chatActivoId = contactos[0].id;
     }
 
-    const activo = contactos.find((c) => c.id === estado.chatActivoId) || contactos[0];
+    const activo = contactos.find((c) => c.id === rel.chatActivoId) || contactos[0];
     headerChat.innerHTML = `
       <div class="chat-usuario-info">
         <div class="avatar-sm">${obtenerIniciales(activo.nombre)}</div>
@@ -361,14 +472,14 @@ document.addEventListener("DOMContentLoaded", () => {
       pill.className = `pill-contacto ${c.id === activo.id ? "activa" : ""}`;
       pill.textContent = c.nombre.split(" ")[0];
       pill.addEventListener("click", () => {
-        estado.chatActivoId = c.id;
+        rel.chatActivoId = c.id;
         guardarEstado(estado);
         renderChats();
       });
       listaContactosChat.appendChild(pill);
     });
 
-    const msgs = estado.conversaciones[activo.id] || [];
+    const msgs = rel.conversaciones[activo.id] || [];
     mensajesBox.innerHTML = "";
 
     msgs.forEach((m) => {
@@ -400,15 +511,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderHorarios() {
     const u = obtenerUsuarioActual();
-    const companeros = estado.usuarios.filter((x) => x.id !== u.id);
+    if (!u) return;
 
-    if (!companeros.some((x) => x.id === compararConId)) {
-      const preferido = companeros.find((x) => x.nombre.includes("Camila")) || companeros[0];
-      compararConId = preferido ? preferido.id : null;
+    const otros = obtenerOtrosUsuarios(u.id);
+    if (otros.length === 0) {
+      tabsComparar.innerHTML = "";
+      matrizComparacion.innerHTML = `<div class="vacio-app">Aún no hay otros usuarios registrados para comparar horarios.</div>`;
+      resumenCruce.innerHTML = "";
+      return;
+    }
+
+    if (!otros.some((x) => x.id === compararConId)) {
+      compararConId = otros[0].id;
     }
 
     tabsComparar.innerHTML = "";
-    companeros.forEach((comp) => {
+    otros.forEach((comp) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = `pill-contacto ${comp.id === compararConId ? "activa" : ""}`;
@@ -420,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tabsComparar.appendChild(btn);
     });
 
-    const otro = companeros.find((x) => x.id === compararConId);
+    const otro = otros.find((x) => x.id === compararConId);
     if (!otro) return;
 
     const resultado = compararDisponibilidades(u.disponibilidad, otro.disponibilidad);
@@ -477,6 +595,8 @@ document.addEventListener("DOMContentLoaded", () => {
   formNuevaSesion.addEventListener("submit", (e) => {
     e.preventDefault();
     const u = obtenerUsuarioActual();
+    if (!u) return;
+
     const titulo = document.getElementById("input-sesion-titulo").value.trim();
     const curso = document.getElementById("select-sesion-curso").value;
     const categoria = document.getElementById("select-sesion-cat").value;
@@ -503,7 +623,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderSesiones() {
     const u = obtenerUsuarioActual();
+    if (!u) return;
+
     listaSesiones.innerHTML = "";
+    if (!estado.sesiones || estado.sesiones.length === 0) {
+      listaSesiones.innerHTML = `<div class="vacio-app">0 sesiones creadas todavía. Toca <strong>+ Nueva</strong> para publicar la primera.</div>`;
+      return;
+    }
 
     estado.sesiones.forEach((s) => {
       const yaUnido = (s.asistentes || []).includes(u.nombre);
@@ -522,11 +648,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="sesion-meta">🕒 ${s.fechaHora}</div>
         <div class="sesion-meta">📍 ${s.lugar}</div>
         <div class="sesion-asistentes">
-          ${
-            s.asistentes && s.asistentes.length > 0
-              ? `Asistentes (${s.asistentes.length}): ${s.asistentes.join(", ")}`
-              : "Sé la primera persona en unirte"
-          }
+          Asistentes (${(s.asistentes || []).length}): ${(s.asistentes || []).join(", ")}
         </div>
       `;
 
@@ -545,12 +667,5 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- BOTÓN RESTAURAR DEMO ---
-  document.getElementById("btn-reset-demo").addEventListener("click", () => {
-    estado = restaurarEstadoDemo();
-    cambiarVista("vista-perfil");
-  });
-
-  // Render inicial
-  renderPerfil();
+  sincronizarSesionUI();
 });
