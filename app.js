@@ -30,18 +30,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function obtenerRelaciones(usuarioId) {
+    const key = Number(usuarioId);
     if (!estado.relacionesPorUsuario) {
       estado.relacionesPorUsuario = {};
     }
-    if (!estado.relacionesPorUsuario[usuarioId]) {
-      estado.relacionesPorUsuario[usuarioId] = {
+    if (!estado.relacionesPorUsuario[key]) {
+      estado.relacionesPorUsuario[key] = {
         matchesIds: [],
         descartadosIds: [],
         chatActivoId: null,
         conversaciones: {}
       };
     }
-    return estado.relacionesPorUsuario[usuarioId];
+    if (!estado.relacionesPorUsuario[key].conversaciones) {
+      estado.relacionesPorUsuario[key].conversaciones = {};
+    }
+    return estado.relacionesPorUsuario[key];
+  }
+
+  function obtenerMensajesDeConversacion(rel, otroId) {
+    const convs = rel.conversaciones || {};
+    const lista = convs[String(otroId)] || convs[Number(otroId)] || [];
+    return Array.isArray(lista) ? lista : [];
   }
 
   function obtenerIniciales(nombre) {
@@ -133,7 +143,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         mostrarVistaUnica("vista-acceso");
         return;
       }
+      const sesionActual = estado.sesionActivaId;
       estado = await cargarEstadoRemoto();
+      estado.sesionActivaId = sesionActual;
       mostrarVistaUnica(btn.dataset.vista);
     });
   });
@@ -521,13 +533,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!rel.matchesIds.includes(cand.id)) {
         rel.matchesIds.push(cand.id);
       }
-      if (!rel.conversaciones[cand.id]) {
-        rel.conversaciones[cand.id] = [
-          {
-            tipo: "ellos",
-            texto: `¡Hola ${u.nombre.split(" ")[0]}! Tenemos ${actual.porcentaje}% de compatibilidad en cursos. ¿Coordinamos?`
-          }
-        ];
+      if (!Array.isArray(rel.conversaciones[String(cand.id)])) {
+        rel.conversaciones[String(cand.id)] = [];
       }
       rel.chatActivoId = cand.id;
       await guardarRelacionRemota(u.id, rel);
@@ -558,22 +565,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       const hora = document.getElementById("input-plan-hora").value.trim();
       if (!lugar || !hora || !rel.chatActivoId) return;
 
-      if (!rel.conversaciones[rel.chatActivoId]) {
-        rel.conversaciones[rel.chatActivoId] = [];
-      }
-
-      rel.conversaciones[rel.chatActivoId].push({
+      const destinoId = Number(rel.chatActivoId);
+      const nuevoPlan = {
+        id: Date.now(),
         tipo: "plan",
         lugar,
         hora,
         estado: "Confirmado"
-      });
+      };
 
       document.getElementById("input-plan-lugar").value = "";
       document.getElementById("input-plan-hora").value = "";
       formPlan.hidden = true;
+
+      const resultado = await enviarMensajeEntreUsuarios(u.id, destinoId, nuevoPlan);
+      estado.relacionesPorUsuario[Number(u.id)] = resultado.relRemitente;
+      estado.relacionesPorUsuario[destinoId] = resultado.relDestinatario;
       renderChats();
-      await guardarRelacionRemota(u.id, rel);
     });
   }
 
@@ -587,18 +595,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       const texto = input ? input.value.trim() : "";
       if (!texto || !rel.chatActivoId) return;
 
-      if (!rel.conversaciones[rel.chatActivoId]) {
-        rel.conversaciones[rel.chatActivoId] = [];
-      }
-
-      rel.conversaciones[rel.chatActivoId].push({
+      const destinoId = Number(rel.chatActivoId);
+      const nuevoMsg = {
+        id: Date.now(),
         tipo: "mio",
         texto
-      });
+      };
 
       input.value = "";
+
+      const resultado = await enviarMensajeEntreUsuarios(u.id, destinoId, nuevoMsg);
+      estado.relacionesPorUsuario[Number(u.id)] = resultado.relRemitente;
+      estado.relacionesPorUsuario[destinoId] = resultado.relDestinatario;
       renderChats();
-      await guardarRelacionRemota(u.id, rel);
     });
   }
 
@@ -608,7 +617,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const rel = obtenerRelaciones(u.id);
     const otros = obtenerOtrosUsuarios(u.id);
-    const contactos = otros.filter((x) => (rel.matchesIds || []).includes(x.id));
+    const contactos = otros.filter((x) => (rel.matchesIds || []).map(Number).includes(Number(x.id)));
 
     if (contactos.length === 0) {
       if (headerChat) headerChat.innerHTML = `<strong>Chats</strong><span class="badge-suave">0 matches</span>`;
@@ -625,18 +634,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    if (!contactos.some((c) => c.id === rel.chatActivoId)) {
-      rel.chatActivoId = contactos[0].id;
+    if (!contactos.some((c) => Number(c.id) === Number(rel.chatActivoId))) {
+      rel.chatActivoId = Number(contactos[0].id);
     }
 
-    const activo = contactos.find((c) => c.id === rel.chatActivoId) || contactos[0];
+    const activo = contactos.find((c) => Number(c.id) === Number(rel.chatActivoId)) || contactos[0];
     if (headerChat) {
       headerChat.innerHTML = `
         <div class="chat-usuario-info">
           <div class="avatar-sm">${obtenerIniciales(activo.nombre)}</div>
           <div>
             <div style="font-weight:800;font-size:0.92rem;">${activo.nombre}</div>
-            <div class="estado-linea">Conectado · ${activo.contacto}</div>
+            <div class="estado-linea">Match · ${activo.contacto}</div>
           </div>
         </div>
       `;
@@ -647,10 +656,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       contactos.forEach((c) => {
         const pill = document.createElement("button");
         pill.type = "button";
-        pill.className = `pill-contacto ${c.id === activo.id ? "activa" : ""}`;
+        pill.className = `pill-contacto ${Number(c.id) === Number(activo.id) ? "activa" : ""}`;
         pill.textContent = c.nombre.split(" ")[0];
         pill.addEventListener("click", async () => {
-          rel.chatActivoId = c.id;
+          rel.chatActivoId = Number(c.id);
           renderChats();
           await guardarRelacionRemota(u.id, rel);
         });
@@ -658,27 +667,36 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
-    const msgs = rel.conversaciones[activo.id] || [];
+    const msgs = obtenerMensajesDeConversacion(rel, activo.id);
     mensajesBox.innerHTML = "";
 
-    msgs.forEach((m) => {
-      if (m.tipo === "plan") {
-        const planCard = document.createElement("div");
-        planCard.className = "tarjeta-plan";
-        planCard.innerHTML = `
-          <span class="plan-etiqueta">Propuesta de plan</span>
-          <span class="plan-dato">📍 ${m.lugar}</span>
-          <span class="plan-dato">🕒 ${m.hora}</span>
-          <span class="plan-estado">✓ ${m.estado || "Confirmado"}</span>
-        `;
-        mensajesBox.appendChild(planCard);
-      } else {
-        const burbuja = document.createElement("div");
-        burbuja.className = `burbuja ${m.tipo === "mio" ? "mio" : "ellos"}`;
-        burbuja.textContent = m.texto;
-        mensajesBox.appendChild(burbuja);
-      }
-    });
+    if (msgs.length === 0) {
+      mensajesBox.innerHTML = `
+        <div class="vacio-app">
+          <p><strong>Aún no hay mensajes con ${activo.nombre}.</strong></p>
+          <p>Escribe el primer mensaje o propón un plan de estudio aquí abajo.</p>
+        </div>
+      `;
+    } else {
+      msgs.forEach((m) => {
+        if (m.tipo === "plan") {
+          const planCard = document.createElement("div");
+          planCard.className = "tarjeta-plan";
+          planCard.innerHTML = `
+            <span class="plan-etiqueta">Propuesta de plan</span>
+            <span class="plan-dato">📍 ${m.lugar}</span>
+            <span class="plan-dato">🕒 ${m.hora}</span>
+            <span class="plan-estado">✓ ${m.estado || "Confirmado"}</span>
+          `;
+          mensajesBox.appendChild(planCard);
+        } else {
+          const burbuja = document.createElement("div");
+          burbuja.className = `burbuja ${m.tipo === "mio" ? "mio" : "ellos"}`;
+          burbuja.textContent = m.texto;
+          mensajesBox.appendChild(burbuja);
+        }
+      });
+    }
 
     mensajesBox.scrollTop = mensajesBox.scrollHeight;
   }
@@ -892,3 +910,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   sincronizarSesionUI();
 });
+
