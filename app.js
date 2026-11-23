@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .trim()
       .split(/\s+/)
       .slice(0, 2)
-      .map((p) => p[0] ? p[0].toUpperCase() : "")
+      .map((p) => (p[0] ? p[0].toUpperCase() : ""))
       .join("") || "U";
   }
 
@@ -88,7 +88,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // --- ACCESO / CREAR CUENTA / CERRAR SESIÓN ---
   const formCrearCuenta = document.getElementById("form-crear-cuenta");
   const bloqueCuentasExistentes = document.getElementById("bloque-cuentas-existentes");
   const listaCuentasExistentes = document.getElementById("lista-cuentas-existentes");
@@ -142,7 +141,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- VISTA PERFIL ---
   const tarjetaPerfil = document.getElementById("tarjeta-perfil-actual");
   const chipsCursos = document.getElementById("chips-perfil-cursos");
   const badgeCursosCount = document.getElementById("badge-cursos-count");
@@ -319,7 +317,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- VISTA MATCHES ---
   const contenedorCandidato = document.getElementById("contenedor-candidato-match");
   const contadorCandidatos = document.getElementById("contador-candidatos");
   const tabsCat = document.querySelectorAll(".tab-cat");
@@ -448,7 +445,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- VISTA CHATS ---
   const headerChat = document.getElementById("header-chat-activo");
   const listaContactosChat = document.getElementById("lista-contactos-chat");
   const mensajesBox = document.getElementById("mensajes-chat");
@@ -597,7 +593,6 @@ document.addEventListener("DOMContentLoaded", () => {
     mensajesBox.scrollTop = mensajesBox.scrollHeight;
   }
 
-  // --- VISTA HORARIOS ---
   const tabsComparar = document.getElementById("tabs-comparar-con");
   const matrizComparacion = document.getElementById("matriz-comparacion");
   const resumenCruce = document.getElementById("resumen-cruce-horario");
@@ -683,7 +678,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- VISTA SESIONES ---
   const listaSesiones = document.getElementById("lista-sesiones");
   const formNuevaSesion = document.getElementById("form-nueva-sesion");
   const selectSesionCurso = document.getElementById("select-sesion-curso");
