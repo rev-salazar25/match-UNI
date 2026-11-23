@@ -19,6 +19,15 @@ function crearEstadoVacio() {
   };
 }
 
+function normalizarRelacion(r) {
+  return {
+    matchesIds: Array.isArray(r?.matches_ids) ? r.matches_ids.map(Number) : [],
+    descartadosIds: Array.isArray(r?.descartados_ids) ? r.descartados_ids.map(Number) : [],
+    chatActivoId: r?.chat_activo_id ? Number(r.chat_activo_id) : null,
+    conversaciones: r?.conversaciones && typeof r.conversaciones === "object" ? r.conversaciones : {}
+  };
+}
+
 function mapearCuentaDesdeBD(fila) {
   return {
     id: Number(fila.id),
@@ -81,12 +90,7 @@ async function cargarEstadoRemoto() {
     if (resRelaciones.ok) {
       const filasRel = await resRelaciones.json();
       filasRel.forEach((r) => {
-        estado.relacionesPorUsuario[Number(r.usuario_id)] = {
-          matchesIds: Array.isArray(r.matches_ids) ? r.matches_ids.map(Number) : [],
-          descartadosIds: Array.isArray(r.descartados_ids) ? r.descartados_ids.map(Number) : [],
-          chatActivoId: r.chat_activo_id ? Number(r.chat_activo_id) : null,
-          conversaciones: r.conversaciones && typeof r.conversaciones === "object" ? r.conversaciones : {}
-        };
+        estado.relacionesPorUsuario[Number(r.usuario_id)] = normalizarRelacion(r);
       });
     }
 
@@ -107,6 +111,16 @@ async function cargarEstadoRemoto() {
   }
 
   return estado;
+}
+
+async function obtenerRelacionFrescaUsuario(usuarioId) {
+  const resp = await fetch(
+    `${SUPABASE_URL}/rest/v1/relaciones?usuario_id=eq.${Number(usuarioId)}&select=*`,
+    { headers: headersSupabase() }
+  );
+  if (!resp.ok) return normalizarRelacion(null);
+  const filas = await resp.json();
+  return normalizarRelacion(filas[0] || null);
 }
 
 async function guardarSesionActivaLocal(id) {
@@ -194,6 +208,49 @@ async function guardarRelacionRemota(usuarioId, rel) {
   if (!resp.ok) {
     console.error("Error guardando relación:", resp.status, await resp.text());
   }
+}
+
+async function enviarMensajeEntreUsuarios(remitenteId, destinatarioId, itemMensaje) {
+  const idRem = Number(remitenteId);
+  const idDest = Number(destinatarioId);
+
+  const [relRemFresco, relDestFresco] = await Promise.all([
+    obtenerRelacionFrescaUsuario(idRem),
+    obtenerRelacionFrescaUsuario(idDest)
+  ]);
+
+  if (!relRemFresco.matchesIds.includes(idDest)) {
+    relRemFresco.matchesIds.push(idDest);
+  }
+  relRemFresco.chatActivoId = idDest;
+  if (!Array.isArray(relRemFresco.conversaciones[String(idDest)])) {
+    relRemFresco.conversaciones[String(idDest)] = [];
+  }
+  relRemFresco.conversaciones[String(idDest)].push({
+    ...itemMensaje,
+    tipo: itemMensaje.tipo === "plan" ? "plan" : "mio"
+  });
+
+  if (!relDestFresco.matchesIds.includes(idRem)) {
+    relDestFresco.matchesIds.push(idRem);
+  }
+  if (!relDestFresco.chatActivoId) {
+    relDestFresco.chatActivoId = idRem;
+  }
+  if (!Array.isArray(relDestFresco.conversaciones[String(idRem)])) {
+    relDestFresco.conversaciones[String(idRem)] = [];
+  }
+  relDestFresco.conversaciones[String(idRem)].push({
+    ...itemMensaje,
+    tipo: itemMensaje.tipo === "plan" ? "plan" : "ellos"
+  });
+
+  await Promise.all([
+    guardarRelacionRemota(idRem, relRemFresco),
+    guardarRelacionRemota(idDest, relDestFresco)
+  ]);
+
+  return { relRemitente: relRemFresco, relDestinatario: relDestFresco };
 }
 
 async function crearSesionRemota(sesion) {
