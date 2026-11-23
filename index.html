@@ -22,14 +22,44 @@
 
   <main class="escenario-movil">
     <div class="marco-celular">
-      <!-- PANTALLA DE ACCESO / CREAR CUENTA (INICIO DESDE 0) -->
-      <section id="vista-acceso" class="vista activa" aria-label="Crear cuenta o iniciar sesión">
+      <!-- PANTALLA DE ACCESO: INICIAR SESIÓN O CREAR CUENTA -->
+      <section id="vista-acceso" class="vista activa" aria-label="Iniciar sesión o crear cuenta">
         <div class="cabecera-seccion">
-          <h2>Crear cuenta</h2>
-          <span class="badge-naranja">Desde 0</span>
+          <h2 id="titulo-acceso">Acceso</h2>
         </div>
 
-        <div class="bloque-app">
+        <div class="tabs-categorias tabs-acceso" role="tablist">
+          <button type="button" id="tab-modo-login" class="tab-cat activa" data-modo="login">Iniciar Sesión</button>
+          <button type="button" id="tab-modo-registro" class="tab-cat" data-modo="registro">Crear cuenta</button>
+        </div>
+
+        <!-- PANEL INICIAR SESIÓN -->
+        <div id="panel-iniciar-sesion" class="bloque-app">
+          <p class="ayuda-mini">
+            Ingresa los datos que registraste al crear tu cuenta para entrar a tu perfil.
+          </p>
+
+          <form id="form-iniciar-sesion" class="form-app">
+            <label>
+              Contacto (Correo UNI o WhatsApp)
+              <input type="text" id="login-contacto" required placeholder="Ej. ralph@uni.pe" />
+            </label>
+            <label>
+              Nombre completo
+              <input type="text" id="login-nombre" required placeholder="Ej. Ralph Salazar" />
+            </label>
+            <p id="error-form-login" class="alerta-error" hidden></p>
+            <button type="submit" class="btn-naranja">Iniciar Sesión</button>
+          </form>
+
+          <div id="bloque-cuentas-existentes" class="bloque-cuentas-inner" hidden>
+            <h3>Cuentas en este dispositivo</h3>
+            <div id="lista-cuentas-existentes" class="chips-wrap"></div>
+          </div>
+        </div>
+
+        <!-- PANEL CREAR CUENTA -->
+        <div id="panel-crear-cuenta" class="bloque-app" hidden>
           <p class="ayuda-mini">
             Crea tu cuenta para empezar desde cero: sin cursos ni horarios prellenados, y calcula tu % de compatibilidad según los cursos que necesites.
           </p>
@@ -46,7 +76,18 @@
               </label>
               <label>
                 Ciclo
-                <input type="text" id="reg-ciclo" required placeholder="Ej. 1° ciclo" />
+                <select id="reg-ciclo" required>
+                  <option value="1° Primer ciclo">1° Primer ciclo</option>
+                  <option value="2° Segundo ciclo">2° Segundo ciclo</option>
+                  <option value="3° Tercer ciclo">3° Tercer ciclo</option>
+                  <option value="4° Cuarto ciclo">4° Cuarto ciclo</option>
+                  <option value="5° Quinto ciclo">5° Quinto ciclo</option>
+                  <option value="6° Sexto ciclo">6° Sexto ciclo</option>
+                  <option value="7° Séptimo ciclo">7° Séptimo ciclo</option>
+                  <option value="8° Octavo ciclo">8° Octavo ciclo</option>
+                  <option value="9° Noveno ciclo">9° Noveno ciclo</option>
+                  <option value="10° Décimo ciclo">10° Décimo ciclo</option>
+                </select>
               </label>
             </div>
             <label>
@@ -73,13 +114,8 @@
               Descripción corta (opcional)
               <input type="text" id="reg-bio" placeholder="Ej. Busco grupo de estudio para prácticas." />
             </label>
-            <button type="submit" class="btn-naranja">Crear cuenta y empezar desde 0</button>
+            <button type="submit" class="btn-naranja">Crear cuenta</button>
           </form>
-        </div>
-
-        <div id="bloque-cuentas-existentes" class="bloque-app" hidden>
-          <h3>Cuentas en este dispositivo</h3>
-          <div id="lista-cuentas-existentes" class="chips-wrap"></div>
         </div>
       </section>
 
@@ -262,3 +298,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+
