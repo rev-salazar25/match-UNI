@@ -1,16 +1,16 @@
-const CLAVE_BD_UNIMATCH_V3 = "unimatch_fiis_uni_limpio_v3";
+const CLAVE_BD_UNIMATCH_V4 = "unimatch_fiis_uni_v4";
 
 function crearEstadoVacio() {
   return {
     sesionActivaId: null,
-    cuentas: [], // Empieza en 0: solo existirán las cuentas que se registren
-    relacionesPorUsuario: {}, // { [userId]: { matchesIds: [], descartadosIds: [], chatActivoId: null, conversaciones: {} } }
-    sesiones: [] // Empieza en 0 sesiones
+    cuentas: [],
+    relacionesPorUsuario: {},
+    sesiones: []
   };
 }
 
 function cargarEstado() {
-  const raw = localStorage.getItem(CLAVE_BD_UNIMATCH_V3);
+  const raw = localStorage.getItem(CLAVE_BD_UNIMATCH_V4);
   if (!raw) {
     const inicial = crearEstadoVacio();
     guardarEstado(inicial);
@@ -25,7 +25,7 @@ function cargarEstado() {
 }
 
 function guardarEstado(estado) {
-  localStorage.setItem(CLAVE_BD_UNIMATCH_V3, JSON.stringify(estado));
+  localStorage.setItem(CLAVE_BD_UNIMATCH_V4, JSON.stringify(estado));
 }
 
 function crearNuevaCuentaDesdeCero(estado, datosCuenta) {
@@ -54,3 +54,4 @@ function crearNuevaCuentaDesdeCero(estado, datosCuenta) {
   guardarEstado(estado);
   return nuevaCuenta;
 }
+
