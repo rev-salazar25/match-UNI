@@ -908,6 +908,67 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }, 5000);
 
+  (function iniciarRealtimeRelaciones() {
+    if (typeof WebSocket === "undefined") return;
+
+    const wsUrl = SUPABASE_URL.replace(/^https?:\/\//, "wss://") +
+      `/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_ANON_KEY)}&vsn=1.0.0`;
+
+    let socket;
+    let pingTimer;
+
+    function conectar() {
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        socket.send(JSON.stringify({
+          topic: "realtime:public:relaciones",
+          event: "phx_join",
+          payload: {
+            config: {
+              postgres_changes: [{ event: "*", schema: "public", table: "relaciones" }]
+            }
+          },
+          ref: "1"
+        }));
+
+        pingTimer = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              topic: "phoenix",
+              event: "heartbeat",
+              payload: {},
+              ref: String(Date.now())
+            }));
+          }
+        }, 25000);
+      };
+
+      socket.onmessage = async (evento) => {
+        try {
+          const msg = JSON.parse(evento.data);
+          if (msg.event === "postgres_changes") {
+            const sesionActual = estado.sesionActivaId;
+            if (!sesionActual) return;
+            estado = await cargarEstadoRemoto();
+            estado.sesionActivaId = sesionActual;
+            if (vistaActivaId === "vista-chats") renderChats();
+            if (vistaActivaId === "vista-matches") renderMatches();
+          }
+        } catch (err) {
+          console.error("Error procesando evento Realtime:", err);
+        }
+      };
+
+      socket.onclose = () => {
+        clearInterval(pingTimer);
+        setTimeout(conectar, 3000);
+      };
+    }
+
+    conectar();
+  })();
+
   sincronizarSesionUI();
 });
 
