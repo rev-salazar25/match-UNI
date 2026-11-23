@@ -968,3 +968,22 @@ body {
   flex-direction: column;
   gap: 0.65rem;
 }
+
+.tabs-acceso {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.bloque-cuentas-inner {
+  margin-top: 0.4rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--borde);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.bloque-cuentas-inner h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
