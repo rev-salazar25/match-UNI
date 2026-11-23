@@ -25,7 +25,7 @@
       <!-- PANTALLA DE ACCESO: INICIAR SESIÓN O CREAR CUENTA -->
       <section id="vista-acceso" class="vista activa" aria-label="Iniciar sesión o crear cuenta">
         <div class="cabecera-seccion">
-          <h2 id="titulo-acceso">Acceso</h2>
+          <h2 id="titulo-acceso">Iniciar Sesión</h2>
         </div>
 
         <div class="tabs-categorias tabs-acceso" role="tablist">
@@ -36,24 +36,24 @@
         <!-- PANEL INICIAR SESIÓN -->
         <div id="panel-iniciar-sesion" class="bloque-app">
           <p class="ayuda-mini">
-            Ingresa los datos que registraste al crear tu cuenta para entrar a tu perfil.
+            Ingresa tu correo o número y tu contraseña para entrar a tu cuenta.
           </p>
 
           <form id="form-iniciar-sesion" class="form-app">
             <label>
               Contacto (Correo UNI o WhatsApp)
-              <input type="text" id="login-contacto" required placeholder="Ej. ralph@uni.pe" />
+              <input type="text" id="login-contacto" required placeholder="Ej. ralph@uni.pe o 987654321" />
             </label>
             <label>
-              Nombre completo
-              <input type="text" id="login-nombre" required placeholder="Ej. Ralph Salazar" />
+              Contraseña
+              <input type="password" id="login-password" required placeholder="Ingresa tu contraseña" />
             </label>
             <p id="error-form-login" class="alerta-error" hidden></p>
             <button type="submit" class="btn-naranja">Iniciar Sesión</button>
           </form>
 
           <div id="bloque-cuentas-existentes" class="bloque-cuentas-inner" hidden>
-            <h3>Cuentas en este dispositivo</h3>
+            <h3>Cuentas registradas</h3>
             <div id="lista-cuentas-existentes" class="chips-wrap"></div>
           </div>
         </div>
@@ -100,7 +100,11 @@
             </label>
             <label>
               Contacto (Correo UNI o WhatsApp)
-              <input type="text" id="reg-contacto" required placeholder="Ej. ralph@uni.pe" />
+              <input type="text" id="reg-contacto" required placeholder="Ej. ralph@uni.pe o 987654321" />
+            </label>
+            <label>
+              Contraseña
+              <input type="password" id="reg-password" required minlength="4" placeholder="Crea una contraseña (mín. 4 caracteres)" />
             </label>
             <label>
               Objetivo principal
@@ -114,6 +118,7 @@
               Descripción corta (opcional)
               <input type="text" id="reg-bio" placeholder="Ej. Busco grupo de estudio para prácticas." />
             </label>
+            <p id="error-form-registro" class="alerta-error" hidden></p>
             <button type="submit" class="btn-naranja">Crear cuenta</button>
           </form>
         </div>
