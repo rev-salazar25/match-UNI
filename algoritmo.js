@@ -13,62 +13,63 @@ const DIAS_SEMANA = ["L", "M", "M", "J", "V"];
 const TURNOS_DIA = ["Mañana", "Tarde", "Noche"];
 
 /**
- * Calcula compatibilidad académica y de intereses entre un perfil base y un candidato.
+ * Calcula la compatibilidad académica entre el usuario actual (A) y un candidato (B).
+ * Regla principal: si A necesita cursos y B domina todos los cursos que A necesita,
+ * la cobertura de ayuda hacia A es del 100% (aunque B no domine los cursos de A).
  */
-function calcularCompatibilidad(perfilBase, candidato) {
-  if (!perfilBase || !candidato || perfilBase.id === candidato.id) {
+function calcularCompatibilidad(perfilA, candidatoB) {
+  if (!perfilA || !candidatoB || perfilA.id === candidatoB.id) {
     return null;
   }
 
-  const dominaBase = new Set(perfilBase.cursosDomina || []);
-  const necesitaBase = new Set(perfilBase.cursosNecesita || []);
-  const dominaCand = new Set(candidato.cursosDomina || []);
-  const necesitaCand = new Set(candidato.cursosNecesita || []);
+  const dominaA = new Set(perfilA.cursosDomina || []);
+  const necesitaA = [...new Set(perfilA.cursosNecesita || [])];
+  const dominaB = new Set(candidatoB.cursosDomina || []);
+  const necesitaB = [...new Set(candidatoB.cursosNecesita || [])];
 
-  const baseEnsenaACand = [...dominaBase].filter((c) => necesitaCand.has(c));
-  const candEnsenaABase = [...dominaCand].filter((c) => necesitaBase.has(c));
+  // Cursos que A necesita y que B sí domina (ayuda de B hacia A)
+  const bEnsenaAA = necesitaA.filter((curso) => dominaB.has(curso));
 
-  const todosBase = new Set([...dominaBase, ...necesitaBase]);
-  const todosCand = new Set([...dominaCand, ...necesitaCand]);
-  const enComun = [...todosBase].filter((c) => todosCand.has(c));
+  // Cursos que B necesita y que A sí domina (ayuda de A hacia B)
+  const aEnsenaAB = necesitaB.filter((curso) => dominaA.has(curso));
 
-  const esBidireccional = baseEnsenaACand.length > 0 && candEnsenaABase.length > 0;
-  const totalCruces = baseEnsenaACand.length + candEnsenaABase.length;
+  // Cursos en común (sumando dominados/necesitados compartidos)
+  const setTodosA = new Set([...dominaA, ...necesitaA]);
+  const setTodosB = new Set([...dominaB, ...necesitaB]);
+  const enComun = [...setTodosA].filter((curso) => setTodosB.has(curso));
 
-  const puntaje =
-    (esBidireccional ? 100 : 0) +
-    totalCruces * 15 +
-    enComun.length * 10;
+  // Porcentaje de compatibilidad basado en cuánto cubre B de lo que A necesita
+  let porcentaje = 0;
+  if (necesitaA.length > 0) {
+    porcentaje = Math.round((bEnsenaAA.length / necesitaA.length) * 100);
+  } else if (aEnsenaAB.length > 0) {
+    // Si A no marcó cursos que necesita pero sí puede enseñar a B, damos compatibilidad parcial por apoyo
+    porcentaje = 50;
+  }
+
+  const esBidireccional = bEnsenaAA.length > 0 && aEnsenaAB.length > 0;
 
   return {
-    candidato,
+    candidato: candidatoB,
+    porcentaje,
+    bEnsenaAA,
+    aEnsenaAB,
     enComun,
-    baseEnsenaACand,
-    candEnsenaABase,
-    esBidireccional,
-    puntaje
+    esBidireccional
   };
 }
 
-/**
- * Filtra y ordena candidatos según categoría ("Estudio", "Actividades", "Networking")
- * y excluye los ya evaluados (descartados o con match).
- */
-function obtenerCandidatosOrdenados(perfilBase, todosUsuarios, categoria, idsExcluidos) {
+function obtenerCandidatosOrdenados(perfilActual, todosUsuarios, categoria, idsExcluidos) {
   const excluidosSet = new Set(idsExcluidos || []);
 
   return todosUsuarios
-    .filter((u) => u.id !== perfilBase.id && !excluidosSet.has(u.id))
+    .filter((u) => u.id !== perfilActual.id && !excluidosSet.has(u.id))
     .filter((u) => !categoria || u.categoria === categoria)
-    .map((u) => calcularCompatibilidad(perfilBase, u))
+    .map((u) => calcularCompatibilidad(perfilActual, u))
     .filter(Boolean)
-    .sort((a, b) => b.puntaje - a.puntaje);
+    .sort((a, b) => b.porcentaje - a.porcentaje);
 }
 
-/**
- * Compara la matriz de 15 bloques (3 turnos x 5 días) entre dos usuarios.
- * Cada índice va de 0 a 14: fila = Math.floor(i / 5), col = i % 5.
- */
 function compararDisponibilidades(slotsA, slotsB) {
   const setA = new Set(slotsA || []);
   const setB = new Set(slotsB || []);
@@ -95,8 +96,5 @@ function compararDisponibilidades(slotsA, slotsB) {
     });
   }
 
-  return {
-    bloques,
-    coincidentes
-  };
-}   
+  return { bloques, coincidentes };
+}
