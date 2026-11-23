@@ -2,12 +2,21 @@ document.addEventListener("DOMContentLoaded", () => {
   let estado = cargarEstado();
   let categoriaActual = "Estudio";
   let compararConId = null;
+  let modoAcceso = "login";
 
   const vistas = document.querySelectorAll(".vista");
   const navItems = document.querySelectorAll(".nav-item");
   const barraNav = document.getElementById("barra-nav-principal");
   const indicadorCuentaTop = document.getElementById("indicador-cuenta-top");
   const btnCerrarSesion = document.getElementById("btn-cerrar-sesion");
+
+  const tituloAcceso = document.getElementById("titulo-acceso");
+  const tabModoLogin = document.getElementById("tab-modo-login");
+  const tabModoRegistro = document.getElementById("tab-modo-registro");
+  const panelIniciarSesion = document.getElementById("panel-iniciar-sesion");
+  const panelCrearCuenta = document.getElementById("panel-crear-cuenta");
+  const formIniciarSesion = document.getElementById("form-iniciar-sesion");
+  const errorFormLogin = document.getElementById("error-form-login");
 
   function obtenerUsuarioActual() {
     if (!estado || !estado.sesionActivaId) return null;
@@ -42,6 +51,39 @@ document.addEventListener("DOMContentLoaded", () => {
       .join("") || "U";
   }
 
+  function cambiarModoAcceso(nuevoModo) {
+    modoAcceso = nuevoModo;
+    const esLogin = modoAcceso === "login";
+
+    if (tituloAcceso) {
+      tituloAcceso.textContent = esLogin ? "Iniciar Sesión" : "Crear cuenta";
+    }
+    if (tabModoLogin) {
+      tabModoLogin.classList.toggle("activa", esLogin);
+    }
+    if (tabModoRegistro) {
+      tabModoRegistro.classList.toggle("activa", !esLogin);
+    }
+    if (panelIniciarSesion) {
+      panelIniciarSesion.hidden = !esLogin;
+      panelIniciarSesion.style.display = esLogin ? "flex" : "none";
+    }
+    if (panelCrearCuenta) {
+      panelCrearCuenta.hidden = esLogin;
+      panelCrearCuenta.style.display = !esLogin ? "flex" : "none";
+    }
+    if (errorFormLogin) {
+      errorFormLogin.hidden = true;
+    }
+  }
+
+  if (tabModoLogin) {
+    tabModoLogin.addEventListener("click", () => cambiarModoAcceso("login"));
+  }
+  if (tabModoRegistro) {
+    tabModoRegistro.addEventListener("click", () => cambiarModoAcceso("registro"));
+  }
+
   function mostrarVistaUnica(idVista) {
     vistas.forEach((v) => {
       const esObjetivo = v.id === idVista;
@@ -68,6 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (indicadorCuentaTop) indicadorCuentaTop.textContent = "Sin sesión";
       if (btnCerrarSesion) btnCerrarSesion.hidden = true;
       if (barraNav) barraNav.hidden = true;
+      cambiarModoAcceso(modoAcceso);
       mostrarVistaUnica("vista-acceso");
     } else {
       if (indicadorCuentaTop) indicadorCuentaTop.textContent = u.nombre;
@@ -114,6 +157,34 @@ document.addEventListener("DOMContentLoaded", () => {
       bloqueCuentasExistentes.hidden = true;
       listaCuentasExistentes.innerHTML = "";
     }
+  }
+
+  if (formIniciarSesion) {
+    formIniciarSesion.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const contactoIngresado = document.getElementById("login-contacto").value.trim().toLowerCase();
+      const nombreIngresado = document.getElementById("login-nombre").value.trim().toLowerCase();
+
+      const cuentaEncontrada = (estado.cuentas || []).find(
+        (c) =>
+          c.contacto.trim().toLowerCase() === contactoIngresado &&
+          c.nombre.trim().toLowerCase() === nombreIngresado
+      );
+
+      if (!cuentaEncontrada) {
+        if (errorFormLogin) {
+          errorFormLogin.textContent = "No encontramos una cuenta con ese contacto y nombre completo. Verifica los datos o crea una cuenta.";
+          errorFormLogin.hidden = false;
+        }
+        return;
+      }
+
+      if (errorFormLogin) errorFormLogin.hidden = true;
+      formIniciarSesion.reset();
+      estado.sesionActivaId = cuentaEncontrada.id;
+      guardarEstado(estado);
+      sincronizarSesionUI();
+    });
   }
 
   if (formCrearCuenta) {
@@ -319,7 +390,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const contenedorCandidato = document.getElementById("contenedor-candidato-match");
   const contadorCandidatos = document.getElementById("contador-candidatos");
-  const tabsCat = document.querySelectorAll(".tab-cat");
+  const tabsCat = document.querySelectorAll(".tab-cat:not([data-modo])");
 
   tabsCat.forEach((tab) => {
     tab.addEventListener("click", () => {
