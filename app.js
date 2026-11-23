@@ -225,7 +225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sincronizarSesionUI();
       } catch (err) {
         if (errorFormRegistro) {
-          errorFormRegistro.textContent = "No se pudo guardar la cuenta en la nube. Revisa tu conexión o clave de Supabase.";
+          errorFormRegistro.textContent = "Detalle del error: " + (err.message || err);
           errorFormRegistro.hidden = false;
         }
       }
