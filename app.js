@@ -1,8 +1,9 @@
-document.addEventListener("DOMContentLoaded", () => {
-  let estado = cargarEstado();
+document.addEventListener("DOMContentLoaded", async () => {
+  let estado = await cargarEstadoRemoto();
   let categoriaActual = "Estudio";
   let compararConId = null;
   let modoAcceso = "login";
+  let vistaActivaId = "vista-acceso";
 
   const vistas = document.querySelectorAll(".vista");
   const navItems = document.querySelectorAll(".nav-item");
@@ -17,14 +18,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const panelCrearCuenta = document.getElementById("panel-crear-cuenta");
   const formIniciarSesion = document.getElementById("form-iniciar-sesion");
   const errorFormLogin = document.getElementById("error-form-login");
+  const errorFormRegistro = document.getElementById("error-form-registro");
 
   function obtenerUsuarioActual() {
     if (!estado || !estado.sesionActivaId) return null;
-    return (estado.cuentas || []).find((c) => c.id === estado.sesionActivaId) || null;
+    return (estado.cuentas || []).find((c) => Number(c.id) === Number(estado.sesionActivaId)) || null;
   }
 
   function obtenerOtrosUsuarios(usuarioId) {
-    return (estado.cuentas || []).filter((c) => c.id !== usuarioId);
+    return (estado.cuentas || []).filter((c) => Number(c.id) !== Number(usuarioId));
   }
 
   function obtenerRelaciones(usuarioId) {
@@ -75,6 +77,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (errorFormLogin) {
       errorFormLogin.hidden = true;
     }
+    if (errorFormRegistro) {
+      errorFormRegistro.hidden = true;
+    }
   }
 
   if (tabModoLogin) {
@@ -85,6 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function mostrarVistaUnica(idVista) {
+    vistaActivaId = idVista;
     vistas.forEach((v) => {
       const esObjetivo = v.id === idVista;
       v.classList.toggle("activa", esObjetivo);
@@ -121,12 +127,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   navItems.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", async (e) => {
       e.preventDefault();
       if (!obtenerUsuarioActual()) {
         mostrarVistaUnica("vista-acceso");
         return;
       }
+      estado = await cargarEstadoRemoto();
       mostrarVistaUnica(btn.dataset.vista);
     });
   });
@@ -142,16 +149,10 @@ document.addEventListener("DOMContentLoaded", () => {
       bloqueCuentasExistentes.hidden = false;
       listaCuentasExistentes.innerHTML = "";
       estado.cuentas.forEach((cuenta) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "pill-contacto";
-        btn.textContent = `${cuenta.nombre} (${cuenta.ciclo})`;
-        btn.addEventListener("click", () => {
-          estado.sesionActivaId = cuenta.id;
-          guardarEstado(estado);
-          sincronizarSesionUI();
-        });
-        listaCuentasExistentes.appendChild(btn);
+        const pill = document.createElement("span");
+        pill.className = "pill-dato";
+        pill.textContent = `${cuenta.nombre} · ${cuenta.ciclo}`;
+        listaCuentasExistentes.appendChild(pill);
       });
     } else {
       bloqueCuentasExistentes.hidden = true;
@@ -160,20 +161,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (formIniciarSesion) {
-    formIniciarSesion.addEventListener("submit", (e) => {
+    formIniciarSesion.addEventListener("submit", async (e) => {
       e.preventDefault();
+      estado = await cargarEstadoRemoto();
       const contactoIngresado = document.getElementById("login-contacto").value.trim().toLowerCase();
-      const nombreIngresado = document.getElementById("login-nombre").value.trim().toLowerCase();
+      const passwordIngresado = document.getElementById("login-password").value;
 
       const cuentaEncontrada = (estado.cuentas || []).find(
         (c) =>
           c.contacto.trim().toLowerCase() === contactoIngresado &&
-          c.nombre.trim().toLowerCase() === nombreIngresado
+          c.password === passwordIngresado
       );
 
       if (!cuentaEncontrada) {
         if (errorFormLogin) {
-          errorFormLogin.textContent = "No encontramos una cuenta con ese contacto y nombre completo. Verifica los datos o crea una cuenta.";
+          errorFormLogin.textContent = "Correo/número o contraseña incorrectos. Verifica tus datos o crea una cuenta.";
           errorFormLogin.hidden = false;
         }
         return;
@@ -182,32 +184,58 @@ document.addEventListener("DOMContentLoaded", () => {
       if (errorFormLogin) errorFormLogin.hidden = true;
       formIniciarSesion.reset();
       estado.sesionActivaId = cuentaEncontrada.id;
-      guardarEstado(estado);
+      await guardarSesionActivaLocal(cuentaEncontrada.id);
       sincronizarSesionUI();
     });
   }
 
   if (formCrearCuenta) {
-    formCrearCuenta.addEventListener("submit", (e) => {
+    formCrearCuenta.addEventListener("submit", async (e) => {
       e.preventDefault();
-      crearNuevaCuentaDesdeCero(estado, {
-        nombre: document.getElementById("reg-nombre").value,
-        procedencia: document.getElementById("reg-procedencia").value,
-        ciclo: document.getElementById("reg-ciclo").value,
-        carrera: document.getElementById("reg-carrera").value,
-        contacto: document.getElementById("reg-contacto").value,
-        categoria: document.getElementById("reg-categoria").value,
-        bio: document.getElementById("reg-bio").value
-      });
-      formCrearCuenta.reset();
-      sincronizarSesionUI();
+      estado = await cargarEstadoRemoto();
+      const contactoLimpio = document.getElementById("reg-contacto").value.trim().toLowerCase();
+      const yaExiste = (estado.cuentas || []).some(
+        (c) => c.contacto.trim().toLowerCase() === contactoLimpio
+      );
+
+      if (yaExiste) {
+        if (errorFormRegistro) {
+          errorFormRegistro.textContent = "Ese correo o número ya está registrado. Ve a Iniciar Sesión.";
+          errorFormRegistro.hidden = false;
+        }
+        return;
+      }
+
+      if (errorFormRegistro) errorFormRegistro.hidden = true;
+
+      try {
+        const nueva = await registrarCuentaRemota({
+          nombre: document.getElementById("reg-nombre").value,
+          procedencia: document.getElementById("reg-procedencia").value,
+          ciclo: document.getElementById("reg-ciclo").value,
+          carrera: document.getElementById("reg-carrera").value,
+          contacto: document.getElementById("reg-contacto").value,
+          password: document.getElementById("reg-password").value,
+          categoria: document.getElementById("reg-categoria").value,
+          bio: document.getElementById("reg-bio").value
+        });
+        estado = await cargarEstadoRemoto();
+        estado.sesionActivaId = nueva.id;
+        formCrearCuenta.reset();
+        sincronizarSesionUI();
+      } catch (err) {
+        if (errorFormRegistro) {
+          errorFormRegistro.textContent = "No se pudo guardar la cuenta en la nube. Revisa tu conexión o clave de Supabase.";
+          errorFormRegistro.hidden = false;
+        }
+      }
     });
   }
 
   if (btnCerrarSesion) {
-    btnCerrarSesion.addEventListener("click", () => {
+    btnCerrarSesion.addEventListener("click", async () => {
       estado.sesionActivaId = null;
-      guardarEstado(estado);
+      await guardarSesionActivaLocal(null);
       sincronizarSesionUI();
     });
   }
@@ -275,7 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (formPerfil) {
-    formPerfil.addEventListener("submit", (e) => {
+    formPerfil.addEventListener("submit", async (e) => {
       e.preventDefault();
       const u = obtenerUsuarioActual();
       if (!u) return;
@@ -294,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       u.cursosDomina = domina;
       u.cursosNecesita = necesita;
-      guardarEstado(estado);
+      await actualizarCuentaRemota(u);
       cerrarEditorPerfil();
       renderPerfil();
     });
@@ -322,7 +350,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="pill-dato">${u.ciclo}</span>
           <span class="pill-dato">${u.contacto}</span>
         </div>
-        <p class="perfil-bio">${u.bio || "Cuenta nueva iniciada desde 0. Configura tus cursos y disponibilidad cuando quieras."}</p>
+        <p class="perfil-bio">${u.bio || "Cuenta activa en UniMatch. Configura tus cursos y disponibilidad cuando quieras."}</p>
       `;
     }
 
@@ -373,15 +401,15 @@ document.addEventListener("DOMContentLoaded", () => {
         bloque.type = "button";
         bloque.className = `franja-bloque ${disp.has(i) ? "activa" : ""}`;
         bloque.title = `${DIAS_SEMANA[i % 5]} · ${TURNOS_DIA[Math.floor(i / 5)]}`;
-        bloque.addEventListener("click", () => {
+        bloque.addEventListener("click", async () => {
           if (disp.has(i)) {
             disp.delete(i);
           } else {
             disp.add(i);
           }
           u.disponibilidad = [...disp].sort((a, b) => a - b);
-          guardarEstado(estado);
           renderPerfil();
+          await actualizarCuentaRemota(u);
         });
         grillaDispPerfil.appendChild(bloque);
       }
@@ -417,18 +445,9 @@ document.addEventListener("DOMContentLoaded", () => {
       contenedorCandidato.innerHTML = `
         <div class="vacio-app">
           <p><strong>No se encontraron matches todavía.</strong></p>
-          <p>Aún no hay otras cuentas registradas en el sistema. Cierra sesión y crea otra cuenta para probar compatibilidad y hacer match.</p>
-          <button type="button" id="btn-ir-crear-otra" class="btn-naranja">Cerrar sesión y crear otra cuenta</button>
+          <p>Aún no hay otras cuentas registradas. Comparte el enlace para que otros compañeros creen su cuenta y aparezcan aquí.</p>
         </div>
       `;
-      const btnCrearOtra = document.getElementById("btn-ir-crear-otra");
-      if (btnCrearOtra) {
-        btnCrearOtra.addEventListener("click", () => {
-          estado.sesionActivaId = null;
-          guardarEstado(estado);
-          sincronizarSesionUI();
-        });
-      }
       return;
     }
 
@@ -442,10 +461,10 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       const btnReinicio = document.getElementById("btn-reiniciar-cola");
       if (btnReinicio) {
-        btnReinicio.addEventListener("click", () => {
+        btnReinicio.addEventListener("click", async () => {
           rel.descartadosIds = [];
-          guardarEstado(estado);
           renderMatches();
+          await guardarRelacionRemota(u.id, rel);
         });
       }
       return;
@@ -492,13 +511,13 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
-    document.getElementById("btn-swipe-x").addEventListener("click", () => {
+    document.getElementById("btn-swipe-x").addEventListener("click", async () => {
       rel.descartadosIds.push(cand.id);
-      guardarEstado(estado);
       renderMatches();
+      await guardarRelacionRemota(u.id, rel);
     });
 
-    document.getElementById("btn-swipe-check").addEventListener("click", () => {
+    document.getElementById("btn-swipe-check").addEventListener("click", async () => {
       if (!rel.matchesIds.includes(cand.id)) {
         rel.matchesIds.push(cand.id);
       }
@@ -511,7 +530,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ];
       }
       rel.chatActivoId = cand.id;
-      guardarEstado(estado);
+      await guardarRelacionRemota(u.id, rel);
       mostrarVistaUnica("vista-chats");
     });
   }
@@ -530,7 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (formPlan) {
-    formPlan.addEventListener("submit", (e) => {
+    formPlan.addEventListener("submit", async (e) => {
       e.preventDefault();
       const u = obtenerUsuarioActual();
       if (!u) return;
@@ -553,13 +572,13 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("input-plan-lugar").value = "";
       document.getElementById("input-plan-hora").value = "";
       formPlan.hidden = true;
-      guardarEstado(estado);
       renderChats();
+      await guardarRelacionRemota(u.id, rel);
     });
   }
 
   if (formMensaje) {
-    formMensaje.addEventListener("submit", (e) => {
+    formMensaje.addEventListener("submit", async (e) => {
       e.preventDefault();
       const u = obtenerUsuarioActual();
       if (!u) return;
@@ -578,8 +597,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       input.value = "";
-      guardarEstado(estado);
       renderChats();
+      await guardarRelacionRemota(u.id, rel);
     });
   }
 
@@ -617,7 +636,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="avatar-sm">${obtenerIniciales(activo.nombre)}</div>
           <div>
             <div style="font-weight:800;font-size:0.92rem;">${activo.nombre}</div>
-            <div class="estado-linea">En línea · ${activo.contacto}</div>
+            <div class="estado-linea">Conectado · ${activo.contacto}</div>
           </div>
         </div>
       `;
@@ -630,10 +649,10 @@ document.addEventListener("DOMContentLoaded", () => {
         pill.type = "button";
         pill.className = `pill-contacto ${c.id === activo.id ? "activa" : ""}`;
         pill.textContent = c.nombre.split(" ")[0];
-        pill.addEventListener("click", () => {
+        pill.addEventListener("click", async () => {
           rel.chatActivoId = c.id;
-          guardarEstado(estado);
           renderChats();
+          await guardarRelacionRemota(u.id, rel);
         });
         listaContactosChat.appendChild(pill);
       });
@@ -678,7 +697,7 @@ document.addEventListener("DOMContentLoaded", () => {
       matrizComparacion.innerHTML = `
         <div class="vacio-app">
           <p><strong>No hay compañeros para comparar horarios todavía.</strong></p>
-          <p>Cuando exista otra cuenta registrada, aquí verás qué bloques de Lunes a Viernes coinciden libres.</p>
+          <p>Cuando otros compañeros se registren, aquí verás qué bloques de Lunes a Viernes coinciden libres.</p>
         </div>
       `;
       if (resumenCruce) resumenCruce.innerHTML = `<div>0 franjas coincidentes · Marca tu disponibilidad en <strong>Perfil</strong>.</div>`;
@@ -767,7 +786,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (formNuevaSesion) {
-    formNuevaSesion.addEventListener("submit", (e) => {
+    formNuevaSesion.addEventListener("submit", async (e) => {
       e.preventDefault();
       const u = obtenerUsuarioActual();
       if (!u) return;
@@ -780,7 +799,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!titulo || !fechaHora || !lugar) return;
 
-      estado.sesiones.unshift({
+      const nuevaSesion = {
         id: Date.now(),
         titulo,
         curso,
@@ -788,13 +807,14 @@ document.addEventListener("DOMContentLoaded", () => {
         fechaHora,
         lugar,
         asistentes: [u.nombre]
-      });
+      };
 
+      estado.sesiones.unshift(nuevaSesion);
       formNuevaSesion.reset();
       formNuevaSesion.hidden = true;
       formNuevaSesion.style.display = "none";
-      guardarEstado(estado);
       renderSesiones();
+      await crearSesionRemota(nuevaSesion);
     });
   }
 
@@ -842,20 +862,33 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
 
-      card.querySelector(".btn-unirme").addEventListener("click", () => {
+      card.querySelector(".btn-unirme").addEventListener("click", async () => {
         s.asistentes = s.asistentes || [];
         if (yaUnido) {
           s.asistentes = s.asistentes.filter((n) => n !== u.nombre);
         } else {
           s.asistentes.push(u.nombre);
         }
-        guardarEstado(estado);
         renderSesiones();
+        await actualizarAsistentesSesionRemota(s.id, s.asistentes);
       });
 
       listaSesiones.appendChild(card);
     });
   }
+
+  setInterval(async () => {
+    if (!obtenerUsuarioActual()) return;
+    if (["vista-matches", "vista-chats", "vista-horarios", "vista-sesiones"].includes(vistaActivaId)) {
+      const sesionActual = estado.sesionActivaId;
+      estado = await cargarEstadoRemoto();
+      estado.sesionActivaId = sesionActual;
+      if (vistaActivaId === "vista-matches") renderMatches();
+      if (vistaActivaId === "vista-chats") renderChats();
+      if (vistaActivaId === "vista-horarios") renderHorarios();
+      if (vistaActivaId === "vista-sesiones") renderSesiones();
+    }
+  }, 5000);
 
   sincronizarSesionUI();
 });
