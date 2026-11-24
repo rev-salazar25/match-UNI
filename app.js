@@ -473,8 +473,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="vacio-app">
           <p><strong>No se encontraron matches todavía.</strong></p>
           <p>Aún no hay otras cuentas registradas. Comparte el enlace para que otros compañeros creen su cuenta y aparezcan aquí.</p>
+          <div style="display:flex;justify-content:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.2rem;">
+            <button type="button" id="btn-ir-perfil-vacio" class="btn-naranja" style="flex:0 1 auto;">Completar mi perfil</button>
+          </div>
         </div>
       `;
+      const btnPerfilVacio = document.getElementById("btn-ir-perfil-vacio");
+      if (btnPerfilVacio) {
+        btnPerfilVacio.addEventListener("click", () => mostrarVistaUnica("vista-perfil"));
+      }
       return;
     }
 
@@ -986,4 +993,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   sincronizarSesionUI();
 });
-
