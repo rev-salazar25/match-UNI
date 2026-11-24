@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let compararConId = null;
   let modoAcceso = "login";
   let vistaActivaId = "vista-acceso";
+  let perfilModalUsuarioId = null;
 
   const vistas = document.querySelectorAll(".vista");
   const navItems = document.querySelectorAll(".nav-item");
@@ -61,6 +62,166 @@ document.addEventListener("DOMContentLoaded", async () => {
       .slice(0, 2)
       .map((p) => (p[0] ? p[0].toUpperCase() : ""))
       .join("") || "U";
+  }
+
+  function obtenerRutaBannerCategoria(categoria) {
+    const mapa = {
+      Estudio: "./assets/img/banner-estudio.jpg",
+      Actividades: "./assets/img/banner-actividades.jpg",
+      Networking: "./assets/img/banner-networking.jpg"
+    };
+    return mapa[categoria] || mapa.Estudio;
+  }
+
+  function formatearDisponibilidadTexto(dispArray) {
+    const setDisp = new Set(dispArray || []);
+    if (setDisp.size === 0) return "Sin franjas marcadas aún.";
+    const dias = (typeof DIAS_SEMANA !== "undefined" && DIAS_SEMANA) || ["Lun", "Mar", "Mié", "Jue", "Vie"];
+    const turnos = (typeof TURNOS_DIA !== "undefined" && TURNOS_DIA) || ["Mañana", "Tarde", "Noche"];
+    return [...setDisp]
+      .sort((a, b) => a - b)
+      .map((idx) => `${dias[idx % 5]} (${turnos[Math.floor(idx / 5)]})`)
+      .join(", ");
+  }
+
+  // Modal / panel para ver el perfil completo de otro usuario y eliminar match
+  function asegurarModalPerfilUsuario() {
+    let modal = document.getElementById("modal-perfil-usuario");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "modal-perfil-usuario";
+    modal.className = "modal-perfil-overlay";
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div class="modal-perfil-card" role="dialog" aria-modal="true" aria-labelledby="modal-perfil-titulo">
+        <div class="modal-perfil-top">
+          <h3 id="modal-perfil-titulo">Perfil del compañero</h3>
+          <button type="button" id="btn-cerrar-modal-perfil" class="btn-gris" style="padding:0.4rem 0.75rem;">✕</button>
+        </div>
+        <div id="modal-perfil-cuerpo" class="modal-perfil-cuerpo"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) cerrarModalPerfilUsuario();
+    });
+    document.getElementById("btn-cerrar-modal-perfil").addEventListener("click", cerrarModalPerfilUsuario);
+
+    return modal;
+  }
+
+  function cerrarModalPerfilUsuario() {
+    const modal = document.getElementById("modal-perfil-usuario");
+    if (!modal) return;
+    perfilModalUsuarioId = null;
+    modal.hidden = true;
+    modal.style.display = "none";
+  }
+
+  async function eliminarMatchUsuario(objetivoId) {
+    const u = obtenerUsuarioActual();
+    if (!u) return;
+    const rel = obtenerRelaciones(u.id);
+    const idNum = Number(objetivoId);
+
+    rel.matchesIds = (rel.matchesIds || []).map(Number).filter((id) => id !== idNum);
+    if (Number(rel.chatActivoId) === idNum) {
+      rel.chatActivoId = rel.matchesIds.length > 0 ? Number(rel.matchesIds[0]) : null;
+    }
+
+    cerrarModalPerfilUsuario();
+    await guardarRelacionRemota(u.id, rel);
+    estado = await cargarEstadoRemoto();
+    estado.sesionActivaId = u.id;
+
+    if (vistaActivaId === "vista-chats") renderChats();
+    if (vistaActivaId === "vista-matches") renderMatches();
+  }
+
+  function abrirModalPerfilUsuario(usuarioObjetivo) {
+    if (!usuarioObjetivo) return;
+    perfilModalUsuarioId = Number(usuarioObjetivo.id);
+    const modal = asegurarModalPerfilUsuario();
+    const cuerpo = document.getElementById("modal-perfil-cuerpo");
+    const uActual = obtenerUsuarioActual();
+    const rel = uActual ? obtenerRelaciones(uActual.id) : null;
+    const esMatch = rel ? (rel.matchesIds || []).map(Number).includes(Number(usuarioObjetivo.id)) : false;
+
+    const dom = usuarioObjetivo.cursosDomina || [];
+    const nec = usuarioObjetivo.cursosNecesita || [];
+
+    cuerpo.innerHTML = `
+      <div
+        class="banner-perfil-visual"
+        style="background-image: url('${obtenerRutaBannerCategoria(usuarioObjetivo.categoria)}');"
+      >
+        <span class="banner-perfil-etiqueta">${usuarioObjetivo.categoria || "Estudio"}</span>
+      </div>
+
+      <div class="perfil-cabecera">
+        <div class="avatar-iniciales">${obtenerIniciales(usuarioObjetivo.nombre)}</div>
+        <div>
+          <div class="perfil-nombre">${usuarioObjetivo.nombre} <span class="verificado-dot">●</span></div>
+          <div class="perfil-procedencia">${usuarioObjetivo.procedencia || "UNI"}</div>
+        </div>
+      </div>
+
+      <div class="perfil-meta-pills">
+        <span class="pill-dato">${usuarioObjetivo.carrera}</span>
+        <span class="pill-dato">${usuarioObjetivo.ciclo}</span>
+        <span class="pill-dato">${usuarioObjetivo.contacto}</span>
+      </div>
+
+      <div class="bloque-detalle-perfil">
+        <h4>Descripción</h4>
+        <p class="perfil-bio">${usuarioObjetivo.bio || "Este compañero aún no agregó una descripción."}</p>
+      </div>
+
+      <div class="bloque-detalle-perfil">
+        <h4>Cursos que domina y necesita</h4>
+        <div class="chips-wrap">
+          ${
+            dom.length === 0 && nec.length === 0
+              ? `<span class="ayuda-mini">Sin cursos registrados aún.</span>`
+              : [
+                  ...dom.map((c) => `<span class="chip-interes domina">Domina: ${c}</span>`),
+                  ...nec.map((c) => `<span class="chip-interes">Necesita: ${c}</span>`)
+                ].join("")
+          }
+        </div>
+      </div>
+
+      <div class="bloque-detalle-perfil">
+        <h4>Disponibilidad semanal</h4>
+        <p class="perfil-bio">${formatearDisponibilidadTexto(usuarioObjetivo.disponibilidad)}</p>
+      </div>
+
+      ${
+        esMatch
+          ? `
+        <div class="fila-botones" style="margin-top:0.35rem;">
+          <button type="button" id="btn-confirmar-eliminar-match" class="btn-peligro-match">
+            Eliminar match
+          </button>
+        </div>
+      `
+          : ""
+      }
+    `;
+
+    modal.hidden = false;
+    modal.style.display = "flex";
+
+    const btnEliminar = document.getElementById("btn-confirmar-eliminar-match");
+    if (btnEliminar) {
+      btnEliminar.addEventListener("click", async () => {
+        const seguro = window.confirm(`¿Deseas eliminar tu match con ${usuarioObjetivo.nombre}?`);
+        if (!seguro) return;
+        await eliminarMatchUsuario(usuarioObjetivo.id);
+      });
+    }
   }
 
   function cambiarModoAcceso(nuevoModo) {
@@ -350,6 +511,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (tarjetaPerfil) {
       tarjetaPerfil.style.display = "flex";
       tarjetaPerfil.innerHTML = `
+        <div
+          class="banner-perfil-visual"
+          style="background-image: url('${obtenerRutaBannerCategoria(u.categoria)}');"
+        >
+          <span class="banner-perfil-etiqueta">Modo activo · ${u.categoria || "Estudio"}</span>
+        </div>
         <div class="perfil-cabecera">
           <div class="avatar-iniciales">${obtenerIniciales(u.nombre)}</div>
           <div>
@@ -506,13 +673,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const actual = candidatos[0];
     const cand = actual.candidato;
+    const imgPortada = obtenerRutaBannerCategoria(cand.categoria);
 
     contenedorCandidato.innerHTML = `
       <article class="tarjeta-candidato">
-        <div class="portada-candidato">
+        <div class="portada-candidato" style="background-image: url('${imgPortada}');">
           <span class="badge-coincidencias">${actual.porcentaje}% compatibilidad</span>
           <span class="badge-categoria-card">${cand.categoria}</span>
-          <span>${obtenerIniciales(cand.nombre)}</span>
+          <div class="portada-iniciales-respaldo">${obtenerIniciales(cand.nombre)}</div>
         </div>
         <div class="cuerpo-candidato">
           <div class="candidato-titulo">
@@ -670,7 +838,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="estado-linea">Match · ${activo.contacto}</div>
           </div>
         </div>
+        <div class="chat-acciones-match">
+          <button type="button" id="btn-ver-perfil-match" class="btn-mini">Ver perfil</button>
+          <button type="button" id="btn-eliminar-match-chat" class="btn-peligro-sm">Eliminar match</button>
+        </div>
       `;
+
+      const btnVerPerfil = document.getElementById("btn-ver-perfil-match");
+      if (btnVerPerfil) {
+        btnVerPerfil.addEventListener("click", () => abrirModalPerfilUsuario(activo));
+      }
+
+      const btnEliminarMatch = document.getElementById("btn-eliminar-match-chat");
+      if (btnEliminarMatch) {
+        btnEliminarMatch.addEventListener("click", async () => {
+          const seguro = window.confirm(`¿Deseas eliminar tu match con ${activo.nombre}?`);
+          if (!seguro) return;
+          await eliminarMatchUsuario(activo.id);
+        });
+      }
     }
 
     if (listaContactosChat) {
@@ -993,3 +1179,187 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   sincronizarSesionUI();
 });
+2. Estilos nuevos para pegar al final de styles.css
+Agrega este bloque al final de tu styles.css para darle estilo al panel del perfil del compañero, los botones en el chat y los banners:
+
+CSS
+/* Banners y portadas con imagen */
+.portada-candidato {
+  background-size: cover;
+  background-position: center;
+}
+
+.portada-candidato::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 23, 0.25) 0%,
+    rgba(20, 20, 23, 0.65) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.portada-candidato > * {
+  position: relative;
+  z-index: 2;
+}
+
+.portada-candidato .badge-coincidencias,
+.portada-candidato .badge-categoria-card {
+  z-index: 3;
+}
+
+.portada-iniciales-respaldo {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  background: rgba(20, 20, 23, 0.52);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  display: grid;
+  place-items: center;
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.banner-perfil-visual {
+  width: 100%;
+  height: 112px;
+  border-radius: 16px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--borde);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.65rem 0.85rem;
+}
+
+.banner-perfil-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 20%, rgba(20, 20, 23, 0.68) 100%);
+}
+
+.banner-perfil-etiqueta {
+  position: relative;
+  z-index: 2;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+@media (min-width: 860px) {
+  .portada-candidato {
+    height: 195px;
+  }
+
+  .banner-perfil-visual {
+    height: 132px;
+  }
+}
+
+/* Acciones del match en el chat y modal de perfil */
+.chat-acciones-match {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.btn-peligro-sm {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  padding: 0.36rem 0.78rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-peligro-sm:hover {
+  background: #fee2e2;
+}
+
+.btn-peligro-match {
+  flex: 1;
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 13px;
+  padding: 0.72rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-peligro-match:hover {
+  background: #b91c1c;
+}
+
+.modal-perfil-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 23, 0.56);
+  backdrop-filter: blur(4px);
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-perfil-card {
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: 22px;
+  padding: 1.15rem 1.2rem;
+  box-shadow: var(--sombra-media);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.modal-perfil-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modal-perfil-top h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.modal-perfil-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.bloque-detalle-perfil {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bloque-detalle-perfil h4 {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--tinta);
+}
