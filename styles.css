@@ -413,6 +413,39 @@ body {
   display: none !important;
 }
 
+/* Selector de modo en Perfil */
+.selector-modo-perfil {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  background: #e3f3f1;
+  padding: 0.28rem;
+  border-radius: 999px;
+  border: 1px solid var(--borde);
+}
+
+.btn-modo-perfil {
+  border: none;
+  background: transparent;
+  color: var(--tinta-suave);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.44rem 0.65rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.btn-modo-perfil:hover {
+  color: var(--tinta);
+}
+
+.btn-modo-perfil.activo {
+  background: var(--acento-carbon);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(23, 33, 38, 0.14);
+}
+
 .perfil-cabecera {
   display: flex;
   align-items: center;
