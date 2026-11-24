@@ -91,6 +91,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     return mapa[categoria] || mapa.Estudio;
   }
 
+  function asegurarBannerSeccion(contenedorVista, idBanner, titulo, subtitulo, pillTexto, rutaImg) {
+    if (!contenedorVista) return;
+    let banner = contenedorVista.querySelector(`#${idBanner}`);
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = idBanner;
+      banner.className = "banner-seccion-hero";
+      const cabecera = contenedorVista.querySelector(".cabecera-seccion");
+      if (cabecera && cabecera.nextSibling) {
+        contenedorVista.insertBefore(banner, cabecera.nextSibling);
+      } else {
+        contenedorVista.prepend(banner);
+      }
+    }
+    banner.style.backgroundImage = `url('${rutaImg}')`;
+    banner.innerHTML = `
+      <div class="banner-seccion-texto">
+        <span class="banner-seccion-titulo">${titulo}</span>
+        <span class="banner-seccion-sub">${subtitulo}</span>
+      </div>
+      <span class="banner-seccion-pill">${pillTexto}</span>
+    `;
+  }
+
   function formatearDisponibilidadTexto(dispArray) {
     const setDisp = new Set(dispArray || []);
     if (setDisp.size === 0) return "Sin franjas marcadas aún.";
@@ -999,7 +1023,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const u = obtenerUsuarioActual();
     if (!u || !matrizComparacion) return;
 
+    const vistaHorarios = document.getElementById("vista-horarios");
     const otros = obtenerOtrosUsuarios(u.id);
+
+    asegurarBannerSeccion(
+      vistaHorarios,
+      "banner-hero-horarios",
+      "Cruce de horarios semanales",
+      "Compara tus franjas libres de lunes a viernes para coordinar repasos.",
+      `${(u.disponibilidad || []).length} franjas tuyas`,
+      "./assets/img/Banner-Estudio.jpg"
+    );
+
     if (otros.length === 0) {
       if (tabsComparar) tabsComparar.innerHTML = `<span class="ayuda-mini">Sin compañeros registrados</span>`;
       matrizComparacion.innerHTML = `
@@ -1129,6 +1164,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderSesiones() {
     const u = obtenerUsuarioActual();
     if (!u || !listaSesiones) return;
+
+    const vistaSesiones = document.getElementById("vista-sesiones");
+    const totalSesiones = (estado.sesiones || []).length;
+
+    asegurarBannerSeccion(
+      vistaSesiones,
+      "banner-hero-sesiones",
+      "Sesiones de estudio y repaso",
+      "Únete a grupos abiertos o crea una sesión nueva para avanzar en equipo.",
+      `${totalSesiones} ${totalSesiones === 1 ? "sesión" : "sesiones"}`,
+      "./assets/img/Banner-Actividades.jpg"
+    );
 
     listaSesiones.innerHTML = "";
     if (!estado.sesiones || estado.sesiones.length === 0) {
