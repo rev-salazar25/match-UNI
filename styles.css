@@ -6,33 +6,33 @@
 
 :root {
   /* Paleta inspirada en Hatsune Miku / UI Aqua Dashboard */
-  --fondo-web: #eef8f7;
-  --papel: #f9fdfc;
+  --fondo-web: #e8f6f5;
+  --papel: #f7fcfb;
   --tarjeta: #ffffff;
   --miku-principal: #24b8b4;
   --miku-vibrante: #18a5a1;
   --miku-oscuro: #0f6e6c;
-  --miku-suave: #dff6f4;
-  --miku-borde-suave: #b7e8e3;
-  --acento-carbon: #28333b;
-  --acento-carbon-hover: #1b242b;
+  --miku-suave: #d8f4f1;
+  --miku-borde-suave: #a9e3dd;
+  --acento-carbon: #263238;
+  --acento-carbon-hover: #172024;
   --tinta: #172126;
-  --tinta-suave: #566870;
-  --borde: #dcebe9;
+  --tinta-suave: #52656e;
+  --borde: #d4e8e5;
   --barra-oscura: #172126;
   --verde-ok: #0f766e;
   --verde-fondo: #ccfbf1;
-  --sombra-suave: 0 6px 18px rgba(23, 33, 38, 0.05), 0 2px 5px rgba(36, 184, 180, 0.05);
-  --sombra-media: 0 16px 36px rgba(23, 33, 38, 0.08), 0 4px 12px rgba(36, 184, 180, 0.08);
+  --sombra-suave: 0 8px 20px rgba(23, 33, 38, 0.05), 0 2px 6px rgba(36, 184, 180, 0.06);
+  --sombra-media: 0 18px 38px rgba(23, 33, 38, 0.08), 0 5px 14px rgba(36, 184, 180, 0.09);
 }
 
 html,
 body {
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background:
-    radial-gradient(circle at 8% 10%, rgba(36, 184, 180, 0.16), transparent 36%),
-    radial-gradient(circle at 92% 14%, rgba(125, 211, 252, 0.22), transparent 34%),
-    radial-gradient(circle at 84% 90%, rgba(153, 246, 228, 0.25), transparent 40%),
+    radial-gradient(circle at 6% 8%, rgba(36, 184, 180, 0.2), transparent 38%),
+    radial-gradient(circle at 92% 14%, rgba(125, 211, 252, 0.24), transparent 36%),
+    radial-gradient(circle at 86% 90%, rgba(153, 246, 228, 0.28), transparent 42%),
     var(--fondo-web);
   color: var(--tinta);
   min-height: 100vh;
@@ -41,7 +41,7 @@ body {
 
 /* Barra superior */
 .topbar-web {
-  background: rgba(249, 253, 252, 0.88);
+  background: rgba(247, 252, 251, 0.9);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--borde);
@@ -76,7 +76,7 @@ body {
   height: 11px;
   border-radius: 50%;
   background: linear-gradient(135deg, #39d5cf, var(--miku-vibrante));
-  box-shadow: 0 0 0 4px rgba(36, 184, 180, 0.2);
+  box-shadow: 0 0 0 4px rgba(36, 184, 180, 0.22);
 }
 
 .topbar-links {
@@ -300,9 +300,79 @@ body {
 }
 
 .btn-mini:hover {
-  background: #c8f1ed;
+  background: #c5f0ec;
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(36, 184, 180, 0.18);
+}
+
+/* Banner hero superior tipo referencia */
+.banner-seccion-hero {
+  width: 100%;
+  min-height: 112px;
+  border-radius: 22px;
+  background-color: #39c5bb;
+  background-image:
+    radial-gradient(circle at 86% 24%, rgba(255, 255, 255, 0.36), transparent 46%),
+    linear-gradient(120deg, #5eead4 0%, #24b8b4 56%, #0e7490 100%);
+  background-size: cover;
+  background-position: right center;
+  border: 1px solid var(--miku-borde-suave);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  box-shadow: var(--sombra-suave);
+}
+
+.banner-seccion-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(23, 33, 38, 0.66) 0%,
+    rgba(23, 33, 38, 0.36) 55%,
+    rgba(23, 33, 38, 0.18) 100%
+  );
+  pointer-events: none;
+}
+
+.banner-seccion-texto {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 72%;
+}
+
+.banner-seccion-titulo {
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+.banner-seccion-sub {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.banner-seccion-pill {
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--miku-oscuro);
+  border-radius: 999px;
+  padding: 0.3rem 0.78rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(23, 33, 38, 0.14);
 }
 
 /* Tarjetas tipo Bento / Dashboard */
@@ -327,14 +397,14 @@ body {
 
 .card-perfil {
   background:
-    linear-gradient(125deg, rgba(36, 184, 180, 0.11) 0%, rgba(255, 255, 255, 0.98) 52%),
+    linear-gradient(125deg, rgba(36, 184, 180, 0.12) 0%, rgba(255, 255, 255, 0.98) 54%),
     var(--tarjeta);
 }
 
 .card-perfil:hover,
 .bloque-app:hover {
   border-color: var(--miku-borde-suave);
-  box-shadow: 0 10px 26px rgba(23, 33, 38, 0.07);
+  box-shadow: 0 12px 28px rgba(23, 33, 38, 0.08);
 }
 
 .panel-editor[hidden],
@@ -390,7 +460,7 @@ body {
 }
 
 .pill-dato {
-  background: #f1fbf9;
+  background: #effaf8;
   border: 1px solid var(--borde);
   border-radius: 999px;
   padding: 0.3rem 0.76rem;
@@ -424,7 +494,7 @@ body {
   font-size: 0.74rem;
   font-weight: 700;
   color: var(--tinta-suave);
-  background: #edf7f6;
+  background: #ebf6f5;
   border: 1px solid var(--borde);
   padding: 0.24rem 0.68rem;
   border-radius: 999px;
@@ -441,7 +511,7 @@ body {
 }
 
 .chip-interes {
-  background: #f3fbfa;
+  background: #f1fbf9;
   border: 1px solid var(--borde);
   border-radius: 12px;
   padding: 0.36rem 0.72rem;
@@ -551,8 +621,8 @@ body {
   gap: 0.65rem;
   align-self: flex-end;
   margin-top: 0.35rem;
-  padding: 0.4rem 0.78rem 0.4rem 0.42rem;
-  background: var(--miku-suave);
+  padding: 0.42rem 0.82rem 0.42rem 0.44rem;
+  background: linear-gradient(90deg, #dff6f4 0%, #e0f2fe 100%);
   border: 1px solid var(--miku-borde-suave);
   border-radius: 18px;
   pointer-events: none;
@@ -733,7 +803,7 @@ body {
 .tabs-categorias {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  background: #e4f3f1;
+  background: #e1f2f0;
   padding: 0.28rem;
   border-radius: 999px;
   gap: 0.25rem;
@@ -784,14 +854,14 @@ body {
 
 /* Banner / portada estilo protagonista */
 .portada-candidato {
-  height: 178px;
+  height: 184px;
   background-color: #39c5bb;
   background-image:
     radial-gradient(circle at 84% 24%, rgba(255, 255, 255, 0.34), transparent 46%),
     radial-gradient(circle at 15% 85%, rgba(15, 118, 110, 0.28), transparent 55%),
     linear-gradient(125deg, #5eead4 0%, #24b8b4 55%, #0f766e 100%);
   background-size: cover;
-  background-position: center;
+  background-position: right center;
   position: relative;
   display: flex;
   align-items: center;
@@ -839,14 +909,14 @@ body {
 
 .banner-perfil-visual {
   width: 100%;
-  height: 120px;
+  height: 124px;
   border-radius: 18px;
   background-color: #39c5bb;
   background-image:
     radial-gradient(circle at 86% 22%, rgba(255, 255, 255, 0.36), transparent 45%),
     linear-gradient(120deg, #5eead4 0%, #24b8b4 58%, #0e7490 100%);
   background-size: cover;
-  background-position: center;
+  background-position: right center;
   border: 1px solid var(--miku-borde-suave);
   position: relative;
   overflow: hidden;
@@ -892,7 +962,7 @@ body {
   position: relative;
   z-index: 2;
   color: #ffffff;
-  background: rgba(23, 33, 38, 0.45);
+  background: rgba(23, 33, 38, 0.48);
   backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
@@ -903,11 +973,11 @@ body {
 
 @media (min-width: 860px) {
   .portada-candidato {
-    height: 195px;
+    height: 200px;
   }
 
   .banner-perfil-visual {
-    height: 132px;
+    height: 136px;
   }
 }
 
@@ -915,7 +985,7 @@ body {
   position: absolute;
   top: 0.78rem;
   left: 0.78rem;
-  background: rgba(23, 33, 38, 0.78);
+  background: rgba(23, 33, 38, 0.8);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #ffffff;
@@ -1146,7 +1216,7 @@ body {
 .mensajes-box {
   min-height: 260px;
   max-height: 410px;
-  background: linear-gradient(180deg, rgba(238, 248, 247, 0.55) 0%, #ffffff 100%);
+  background: linear-gradient(180deg, rgba(232, 246, 245, 0.55) 0%, #ffffff 100%);
   border: 1px solid var(--borde);
   border-radius: 22px;
   padding: 1rem;
@@ -1179,14 +1249,14 @@ body {
 
 .burbuja.ellos {
   align-self: flex-start;
-  background: #e6f5f3;
+  background: #e3f4f2;
   color: var(--tinta);
   border-bottom-left-radius: 4px;
 }
 
 .burbuja.mio {
   align-self: flex-end;
-  background: linear-gradient(135deg, #28333b 0%, #172126 100%);
+  background: linear-gradient(135deg, #263238 0%, #172126 100%);
   color: #ffffff;
   border-bottom-right-radius: 4px;
 }
@@ -1341,7 +1411,7 @@ body {
 .celda-horario {
   height: 40px;
   border-radius: 11px;
-  background: #28333b;
+  background: #263238;
   border: 1px solid #172126;
   transition: transform 0.12s ease;
 }
@@ -1364,8 +1434,8 @@ body {
 .resumen-cruce {
   background: var(--tarjeta);
   border: 1px solid var(--borde);
-  border-radius: 16px;
-  padding: 0.88rem 1.05rem;
+  border-radius: 18px;
+  padding: 0.9rem 1.08rem;
   font-size: 0.84rem;
   max-width: 650px;
   display: flex;
@@ -1512,8 +1582,8 @@ body {
 
 /* Estados vacíos y acceso */
 .vacio-app {
-  background: linear-gradient(180deg, #ffffff 0%, #f3fbfa 100%);
-  border: 1.5px dashed #b3dfd9;
+  background: linear-gradient(180deg, #ffffff 0%, #f1fbf9 100%);
+  border: 1.5px dashed #a9e3dd;
   border-radius: 20px;
   padding: 1.4rem 1.25rem;
   text-align: center;
