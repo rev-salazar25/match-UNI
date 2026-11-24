@@ -232,6 +232,17 @@ body {
     padding: 1.5rem 1.75rem;
     max-width: 900px;
   }
+
+  .zona-candidato {
+    max-width: 680px;
+    width: 100%;
+    margin: 0.25rem auto 0;
+  }
+
+  .zona-candidato .vacio-app {
+    padding: 1.6rem 1.4rem;
+    border-radius: 18px;
+  }
 }
 
 .cabecera-seccion {
@@ -384,7 +395,6 @@ body {
   color: var(--naranja-oscuro);
 }
 
-/* Grilla interactiva de 15 franjas horarias (Lun-Vie x Mañana/Tarde/Noche) */
 .grilla-15,
 #grilla-disponibilidad-perfil {
   display: grid;
@@ -636,12 +646,13 @@ body {
   font-weight: 700;
   color: var(--tinta-suave);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tab-cat.activa {
   background: #ffffff;
   color: var(--tinta);
+  box-shadow: 0 2px 6px rgba(24, 24, 27, 0.08);
 }
 
 .zona-candidato {
