@@ -320,6 +320,11 @@ body {
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
+.bloque-app {
+  position: relative;
+  overflow: hidden;
+}
+
 .card-perfil {
   background:
     linear-gradient(125deg, rgba(36, 184, 180, 0.11) 0%, rgba(255, 255, 255, 0.98) 52%),
@@ -537,6 +542,36 @@ body {
   #grilla-disponibilidad-perfil {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/* Ilustración decorativa de calendario */
+.mascota-calendario-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  align-self: flex-end;
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.78rem 0.4rem 0.42rem;
+  background: var(--miku-suave);
+  border: 1px solid var(--miku-borde-suave);
+  border-radius: 18px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(23, 33, 38, 0.06);
+}
+
+.mascota-calendario-img {
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 13px;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 4px 10px rgba(23, 33, 38, 0.14);
+}
+
+.mascota-calendario-nota {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--miku-oscuro);
 }
 
 /* Formularios */
