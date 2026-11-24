@@ -589,6 +589,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnEditarPerfilRapido.addEventListener("click", abrirEditorPerfil);
   }
 
+  const contenedorCandidato = document.getElementById("contenedor-candidato-match");
+  const contadorCandidatos = document.getElementById("contador-candidatos");
+  const tabsCat = document.querySelectorAll(".tab-cat:not([data-modo])");
+
+  tabsCat.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      categoriaActual = tab.dataset.categoria;
+      tabsCat.forEach((t) => t.classList.toggle("activa", t.dataset.categoria === categoriaActual));
+      renderMatches();
+    });
+  });
+
   function renderPerfil() {
     const u = obtenerUsuarioActual();
     if (!u) {
@@ -599,16 +611,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dom = u.cursosDomina || [];
     const nec = u.cursosNecesita || [];
     const totalCursos = new Set([...dom, ...nec]).size;
+    const modoActual = u.categoria || "Estudio";
 
     if (tarjetaPerfil) {
       tarjetaPerfil.style.display = "flex";
       tarjetaPerfil.innerHTML = `
         <div
           class="banner-perfil-visual"
-          style="background-image: url('${obtenerRutaBannerCategoria(u.categoria)}');"
+          style="background-image: url('${obtenerRutaBannerCategoria(modoActual)}');"
         >
-          <span class="banner-perfil-etiqueta">Modo activo · ${u.categoria || "Estudio"}</span>
+          <span class="banner-perfil-etiqueta">Modo activo · ${modoActual}</span>
           <span class="banner-perfil-sub">${totalCursos} cursos · ${(u.disponibilidad || []).length} franjas</span>
+        </div>
+        <div class="selector-modo-perfil" role="group" aria-label="Cambiar modo de perfil">
+          ${["Estudio", "Networking", "Actividades"]
+            .map(
+              (cat) => `
+            <button
+              type="button"
+              class="btn-modo-perfil ${modoActual === cat ? "activo" : ""}"
+              data-modo-perfil="${cat}"
+            >
+              ${cat}
+            </button>
+          `
+            )
+            .join("")}
         </div>
         <div class="perfil-cabecera">
           <div class="avatar-iniciales">${obtenerIniciales(u.nombre)}</div>
@@ -625,6 +653,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
         <p class="perfil-bio">${u.bio || "Cuenta activa en UniMatch. Configura tus cursos y disponibilidad cuando quieras."}</p>
       `;
+
+      tarjetaPerfil.querySelectorAll("[data-modo-perfil]").forEach((btnModo) => {
+        btnModo.addEventListener("click", async () => {
+          const elegido = btnModo.dataset.modoPerfil;
+          if (!elegido || elegido === u.categoria) return;
+          u.categoria = elegido;
+          categoriaActual = elegido;
+          tabsCat.forEach((t) =>
+            t.classList.toggle("activa", t.dataset.categoria === categoriaActual)
+          );
+          renderPerfil();
+          await actualizarCuentaRemota(u);
+        });
+      });
     }
 
     if (badgeCursosCount) {
@@ -715,18 +757,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
   }
-
-  const contenedorCandidato = document.getElementById("contenedor-candidato-match");
-  const contadorCandidatos = document.getElementById("contador-candidatos");
-  const tabsCat = document.querySelectorAll(".tab-cat:not([data-modo])");
-
-  tabsCat.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      categoriaActual = tab.dataset.categoria;
-      tabsCat.forEach((t) => t.classList.toggle("activa", t.dataset.categoria === categoriaActual));
-      renderMatches();
-    });
-  });
 
   function renderMatches() {
     const u = obtenerUsuarioActual();
