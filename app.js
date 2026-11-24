@@ -673,6 +673,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         grillaDispPerfil.appendChild(bloque);
       }
+
+      const bloqueDisp = grillaDispPerfil.closest(".bloque-app");
+      if (bloqueDisp && !bloqueDisp.querySelector(".mascota-calendario-wrap")) {
+        const decor = document.createElement("div");
+        decor.className = "mascota-calendario-wrap";
+        decor.innerHTML = `
+          <img
+            src="./assets/img/calendario-yui.jpg"
+            alt="Decoración de disponibilidad semanal"
+            class="mascota-calendario-img"
+            onerror="this.parentElement.style.display='none'"
+          />
+          <span class="mascota-calendario-nota">¡Marca tus bloques libres!</span>
+        `;
+        bloqueDisp.appendChild(decor);
+      }
     }
   }
 
