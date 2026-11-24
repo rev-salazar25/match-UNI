@@ -171,6 +171,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (Number(rel.chatActivoId) === idNum) {
       rel.chatActivoId = rel.matchesIds.length > 0 ? Number(rel.matchesIds[0]) : null;
     }
+    if (Number(compararConId) === idNum) {
+      compararConId = rel.matchesIds.length > 0 ? Number(rel.matchesIds[0]) : null;
+    }
 
     cerrarModalPerfilUsuario();
     await guardarRelacionRemota(u.id, rel);
@@ -179,6 +182,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (vistaActivaId === "vista-chats") renderChats();
     if (vistaActivaId === "vista-matches") renderMatches();
+    if (vistaActivaId === "vista-horarios") renderHorarios();
   }
 
   function abrirModalPerfilUsuario(usuarioObjetivo) {
@@ -1054,49 +1058,57 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!u || !matrizComparacion) return;
 
     const vistaHorarios = document.getElementById("vista-horarios");
-    const otros = obtenerOtrosUsuarios(u.id);
+    const rel = obtenerRelaciones(u.id);
+    const idsMatches = new Set((rel.matchesIds || []).map(Number));
+    const companerosMatch = obtenerOtrosUsuarios(u.id).filter((x) => idsMatches.has(Number(x.id)));
 
     asegurarBannerSeccion(
       vistaHorarios,
       "banner-hero-horarios",
       "Cruce de horarios semanales",
-      "Compara tus franjas libres de lunes a viernes para coordinar repasos.",
+      "Compara tus franjas libres de lunes a viernes con tus matches.",
       `${(u.disponibilidad || []).length} franjas tuyas`,
       "./assets/img/Banner-Estudio.jpg"
     );
 
-    if (otros.length === 0) {
-      if (tabsComparar) tabsComparar.innerHTML = `<span class="ayuda-mini">Sin compañeros registrados</span>`;
+    if (companerosMatch.length === 0) {
+      compararConId = null;
+      if (tabsComparar) tabsComparar.innerHTML = `<span class="ayuda-mini">Sin matches todavía</span>`;
       matrizComparacion.innerHTML = `
         <div class="vacio-app">
-          <p><strong>No hay compañeros para comparar horarios todavía.</strong></p>
-          <p>Cuando otros compañeros se registren, aquí verás qué bloques de Lunes a Viernes coinciden libres.</p>
+          <p><strong>Solo se muestran los horarios de personas con las que hiciste match.</strong></p>
+          <p>Ve a <strong>Matches</strong> y acepta un perfil para comparar disponibilidades aquí.</p>
+          <button type="button" id="btn-ir-matches-horarios" class="btn-naranja">Ir a Matches</button>
         </div>
       `;
-      if (resumenCruce) resumenCruce.innerHTML = `<div>0 franjas coincidentes · Marca tu disponibilidad en <strong>Perfil</strong>.</div>`;
+      const btnIrM = document.getElementById("btn-ir-matches-horarios");
+      if (btnIrM) btnIrM.addEventListener("click", () => mostrarVistaUnica("vista-matches"));
+      if (resumenCruce) {
+        resumenCruce.innerHTML = `<div>0 franjas coincidentes · Haz match primero para comparar horarios.</div>`;
+      }
       return;
     }
 
-    if (!otros.some((x) => x.id === compararConId)) {
-      compararConId = otros[0].id;
+    if (!companerosMatch.some((x) => Number(x.id) === Number(compararConId))) {
+      compararConId = Number(companerosMatch[0].id);
     }
 
     if (tabsComparar) {
       tabsComparar.innerHTML = "";
-      otros.forEach((comp) => {
+      companerosMatch.forEach((comp) => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = `pill-contacto ${comp.id === compararConId ? "activa" : ""}`;
+        btn.className = `pill-contacto ${Number(comp.id) === Number(compararConId) ? "activa" : ""}`;
         btn.textContent = comp.nombre.split(" ")[0];
         btn.addEventListener("click", () => {
-          compararConId = comp.id;
+          compararConId = Number(comp.id);
           renderHorarios();
         });
         tabsComparar.appendChild(btn);
       });
     }
 
-    const otro = otros.find((x) => x.id === compararConId);
+    const otro = companerosMatch.find((x) => Number(x.id) === Number(compararConId));
     if (!otro) return;
 
     const resultado = compararDisponibilidades(u.disponibilidad, otro.disponibilidad);
@@ -1321,6 +1333,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             estado.sesionActivaId = sesionActual;
             if (vistaActivaId === "vista-chats") renderChats();
             if (vistaActivaId === "vista-matches") renderMatches();
+            if (vistaActivaId === "vista-horarios") renderHorarios();
           }
         } catch (err) {
           console.error("Error procesando evento Realtime:", err);
