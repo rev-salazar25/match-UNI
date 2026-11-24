@@ -6,6 +6,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   let vistaActivaId = "vista-acceso";
   let perfilModalUsuarioId = null;
 
+  const CURSOS_RESPALDO = [
+    "Cálculo Diferencial",
+    "Cálculo Integral",
+    "Cálculo Vectorial",
+    "Química General",
+    "Programación I (C++)",
+    "Estructuras de Datos / Lisp",
+    "Análisis y Diseño de Sistemas",
+    "Redacción y Comunicación"
+  ];
+
+  function obtenerListaCursos() {
+    if (typeof CURSOS_BASE !== "undefined" && Array.isArray(CURSOS_BASE) && CURSOS_BASE.length > 0) {
+      return CURSOS_BASE;
+    }
+    return CURSOS_RESPALDO;
+  }
+
   const vistas = document.querySelectorAll(".vista");
   const navItems = document.querySelectorAll(".nav-item");
   const barraNav = document.getElementById("barra-nav-principal");
@@ -66,9 +84,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function obtenerRutaBannerCategoria(categoria) {
     const mapa = {
-      Estudio: "./assets/img/banner-estudio.jpg",
-      Actividades: "./assets/img/banner-actividades.jpg",
-      Networking: "./assets/img/banner-networking.jpg"
+      Estudio: "./assets/img/Banner-Estudio.jpg",
+      Actividades: "./assets/img/Banner-Actividades.jpg",
+      Networking: "./assets/img/Banner-Networking.jpg"
     };
     return mapa[categoria] || mapa.Estudio;
   }
@@ -84,7 +102,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       .join(", ");
   }
 
-  // Modal / panel para ver el perfil completo de otro usuario y eliminar match
   function asegurarModalPerfilUsuario() {
     let modal = document.getElementById("modal-perfil-usuario");
     if (modal) return modal;
@@ -158,6 +175,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         style="background-image: url('${obtenerRutaBannerCategoria(usuarioObjetivo.categoria)}');"
       >
         <span class="banner-perfil-etiqueta">${usuarioObjetivo.categoria || "Estudio"}</span>
+        <span class="banner-perfil-sub">${usuarioObjetivo.ciclo || "UNI"}</span>
       </div>
 
       <div class="perfil-cabecera">
@@ -171,6 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <div class="perfil-meta-pills">
         <span class="pill-dato">${usuarioObjetivo.carrera}</span>
         <span class="pill-dato">${usuarioObjetivo.ciclo}</span>
+        ${usuarioObjetivo.genero && usuarioObjetivo.genero !== "No especificado" ? `<span class="pill-dato">${usuarioObjetivo.genero}</span>` : ""}
         <span class="pill-dato">${usuarioObjetivo.contacto}</span>
       </div>
 
@@ -390,6 +409,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           contacto: document.getElementById("reg-contacto").value,
           password: document.getElementById("reg-password").value,
           categoria: document.getElementById("reg-categoria").value,
+          genero: document.getElementById("reg-genero") ? document.getElementById("reg-genero").value : "No especificado",
           bio: document.getElementById("reg-bio").value
         });
         estado = await cargarEstadoRemoto();
@@ -418,18 +438,89 @@ document.addEventListener("DOMContentLoaded", async () => {
   const badgeCursosCount = document.getElementById("badge-cursos-count");
   const grillaDispPerfil = document.getElementById("grilla-disponibilidad-perfil");
   const textoFranjas = document.getElementById("texto-franjas-abiertas");
-  const panelEditor = document.getElementById("panel-editor-perfil");
-  const formPerfil = document.getElementById("form-perfil-completo");
-  const checksDomina = document.getElementById("checks-domina");
-  const checksNecesita = document.getElementById("checks-necesita");
-  const errorFormPerfil = document.getElementById("error-form-perfil");
+
+  function asegurarPanelEditorPerfil() {
+    let panel = document.getElementById("panel-editor-perfil");
+    if (!panel) {
+      const vistaPerfil = document.getElementById("vista-perfil") || document.body;
+      panel = document.createElement("section");
+      panel.id = "panel-editor-perfil";
+      panel.className = "panel-editor";
+      panel.hidden = true;
+      panel.innerHTML = `
+        <div class="bloque-titulo-fila">
+          <h3>Editar mis cursos (domino / necesito)</h3>
+          <button type="button" id="btn-cancelar-edicion" class="btn-gris">Cerrar</button>
+        </div>
+        <p class="ayuda-mini">Marca los cursos que dominas para ayudar a otros y los que necesitas reforzar.</p>
+        <form id="form-perfil-completo" class="form-app">
+          <div class="grupo-checks">
+            <span class="label-grupo">Cursos que domino</span>
+            <div id="checks-domina" class="checks-grid"></div>
+          </div>
+          <div class="grupo-checks">
+            <span class="label-grupo">Cursos que necesito</span>
+            <div id="checks-necesita" class="checks-grid"></div>
+          </div>
+          <div id="error-form-perfil" class="alerta-error" hidden></div>
+          <div class="fila-botones">
+            <button type="submit" class="btn-naranja">Guardar cursos</button>
+          </div>
+        </form>
+      `;
+      vistaPerfil.appendChild(panel);
+    }
+
+    if (!panel.dataset.enlazado) {
+      panel.dataset.enlazado = "1";
+      const btnCerrar = panel.querySelector("#btn-cancelar-edicion");
+      if (btnCerrar) {
+        btnCerrar.addEventListener("click", cerrarEditorPerfil);
+      }
+
+      const formEd = panel.querySelector("#form-perfil-completo");
+      if (formEd) {
+        formEd.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const uActual = obtenerUsuarioActual();
+          if (!uActual) return;
+          const domCont = panel.querySelector("#checks-domina");
+          const necCont = panel.querySelector("#checks-necesita");
+          const errCont = panel.querySelector("#error-form-perfil");
+          const domina = [...domCont.querySelectorAll("input:checked")].map((i) => i.value);
+          const necesita = [...necCont.querySelectorAll("input:checked")].map((i) => i.value);
+
+          const repetidos = domina.filter((c) => necesita.includes(c));
+          if (repetidos.length > 0) {
+            if (errCont) {
+              errCont.textContent = `No marques el mismo curso en domino y necesito: ${repetidos.join(", ")}`;
+              errCont.hidden = false;
+            }
+            return;
+          }
+
+          uActual.cursosDomina = domina;
+          uActual.cursosNecesita = necesita;
+          await actualizarCuentaRemota(uActual);
+          cerrarEditorPerfil();
+          renderPerfil();
+        });
+      }
+    }
+
+    return panel;
+  }
 
   function poblarCheckboxesEditor(usuario) {
-    if (!checksDomina || !checksNecesita) return;
-    checksDomina.innerHTML = "";
-    checksNecesita.innerHTML = "";
+    const panel = asegurarPanelEditorPerfil();
+    const domCont = panel.querySelector("#checks-domina");
+    const necCont = panel.querySelector("#checks-necesita");
+    if (!domCont || !necCont) return;
 
-    CURSOS_BASE.forEach((curso) => {
+    domCont.innerHTML = "";
+    necCont.innerHTML = "";
+
+    obtenerListaCursos().forEach((curso) => {
       const lblD = document.createElement("label");
       lblD.className = "check-item";
       const chkD = document.createElement("input");
@@ -437,7 +528,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       chkD.value = curso;
       chkD.checked = (usuario.cursosDomina || []).includes(curso);
       lblD.append(chkD, document.createTextNode(curso));
-      checksDomina.appendChild(lblD);
+      domCont.appendChild(lblD);
 
       const lblN = document.createElement("label");
       lblN.className = "check-item";
@@ -446,59 +537,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       chkN.value = curso;
       chkN.checked = (usuario.cursosNecesita || []).includes(curso);
       lblN.append(chkN, document.createTextNode(curso));
-      checksNecesita.appendChild(lblN);
+      necCont.appendChild(lblN);
     });
   }
 
   function abrirEditorPerfil() {
     const u = obtenerUsuarioActual();
-    if (!u || !panelEditor) return;
+    const panel = asegurarPanelEditorPerfil();
+    if (!u || !panel) return;
     poblarCheckboxesEditor(u);
-    if (errorFormPerfil) errorFormPerfil.hidden = true;
-    panelEditor.hidden = false;
-    panelEditor.style.display = "flex";
+    const errCont = panel.querySelector("#error-form-perfil");
+    if (errCont) errCont.hidden = true;
+    panel.hidden = false;
+    panel.style.display = "flex";
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function cerrarEditorPerfil() {
-    if (!panelEditor) return;
-    panelEditor.hidden = true;
-    panelEditor.style.display = "none";
+    const panel = document.getElementById("panel-editor-perfil");
+    if (!panel) return;
+    panel.hidden = true;
+    panel.style.display = "none";
   }
 
   const btnEditarPerfilRapido = document.getElementById("btn-editar-perfil-rapido");
   if (btnEditarPerfilRapido) {
     btnEditarPerfilRapido.addEventListener("click", abrirEditorPerfil);
-  }
-
-  const btnCancelarEdicion = document.getElementById("btn-cancelar-edicion");
-  if (btnCancelarEdicion) {
-    btnCancelarEdicion.addEventListener("click", cerrarEditorPerfil);
-  }
-
-  if (formPerfil) {
-    formPerfil.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const u = obtenerUsuarioActual();
-      if (!u) return;
-
-      const domina = [...checksDomina.querySelectorAll("input:checked")].map((i) => i.value);
-      const necesita = [...checksNecesita.querySelectorAll("input:checked")].map((i) => i.value);
-
-      const repetidos = domina.filter((c) => necesita.includes(c));
-      if (repetidos.length > 0) {
-        if (errorFormPerfil) {
-          errorFormPerfil.textContent = `No marques el mismo curso en domino y necesito: ${repetidos.join(", ")}`;
-          errorFormPerfil.hidden = false;
-        }
-        return;
-      }
-
-      u.cursosDomina = domina;
-      u.cursosNecesita = necesita;
-      await actualizarCuentaRemota(u);
-      cerrarEditorPerfil();
-      renderPerfil();
-    });
   }
 
   function renderPerfil() {
@@ -508,6 +572,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    const dom = u.cursosDomina || [];
+    const nec = u.cursosNecesita || [];
+    const totalCursos = new Set([...dom, ...nec]).size;
+
     if (tarjetaPerfil) {
       tarjetaPerfil.style.display = "flex";
       tarjetaPerfil.innerHTML = `
@@ -516,6 +584,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           style="background-image: url('${obtenerRutaBannerCategoria(u.categoria)}');"
         >
           <span class="banner-perfil-etiqueta">Modo activo · ${u.categoria || "Estudio"}</span>
+          <span class="banner-perfil-sub">${totalCursos} cursos · ${(u.disponibilidad || []).length} franjas</span>
         </div>
         <div class="perfil-cabecera">
           <div class="avatar-iniciales">${obtenerIniciales(u.nombre)}</div>
@@ -527,15 +596,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="perfil-meta-pills">
           <span class="pill-dato">${u.carrera}</span>
           <span class="pill-dato">${u.ciclo}</span>
+          ${u.genero && u.genero !== "No especificado" ? `<span class="pill-dato">${u.genero}</span>` : ""}
           <span class="pill-dato">${u.contacto}</span>
         </div>
         <p class="perfil-bio">${u.bio || "Cuenta activa en UniMatch. Configura tus cursos y disponibilidad cuando quieras."}</p>
       `;
     }
-
-    const dom = u.cursosDomina || [];
-    const nec = u.cursosNecesita || [];
-    const totalCursos = new Set([...dom, ...nec]).size;
 
     if (badgeCursosCount) {
       badgeCursosCount.textContent = `${totalCursos} cursos`;
@@ -685,7 +751,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="cuerpo-candidato">
           <div class="candidato-titulo">
             <span class="candidato-nombre">${cand.nombre}</span>
-            <span class="candidato-ciclo">${cand.ciclo}</span>
+            <span class="candidato-ciclo">${cand.ciclo}${cand.genero && cand.genero !== "No especificado" ? ` · ${cand.genero}` : ""}</span>
           </div>
           <div class="candidato-rol">${cand.carrera}</div>
           <p class="candidato-bio">${cand.bio || "Estudiante registrado en UniMatch."}</p>
@@ -986,7 +1052,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       resumenCruce.innerHTML = `
         <div><strong>${resultado.coincidentes} franjas coincidentes</strong> con ${otro.nombre}</div>
         <div class="leyenda-cruce">
-          <span>🟧 Ambos libres</span>
+          <span>🟦 Ambos libres</span>
           <span>⬜ Solo uno libre</span>
           <span>⬛ No disponible</span>
         </div>
@@ -999,7 +1065,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const selectSesionCurso = document.getElementById("select-sesion-curso");
 
   if (selectSesionCurso) {
-    selectSesionCurso.innerHTML = CURSOS_BASE.map((c) => `<option value="${c}">${c}</option>`).join("");
+    selectSesionCurso.innerHTML = obtenerListaCursos().map((c) => `<option value="${c}">${c}</option>`).join("");
   }
 
   const btnToggleNuevaSesion = document.getElementById("btn-toggle-nueva-sesion");
