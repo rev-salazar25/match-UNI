@@ -408,11 +408,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (grillaDispPerfil) {
       grillaDispPerfil.innerHTML = "";
+      const diasFallback = ["Lun", "Mar", "Mié", "Jue", "Vie"];
+      const turnosFallback = ["Mañana", "Tarde", "Noche"];
+
       for (let i = 0; i < 15; i++) {
+        const dia = (typeof DIAS_SEMANA !== "undefined" && DIAS_SEMANA[i % 5]) || diasFallback[i % 5];
+        const turno = (typeof TURNOS_DIA !== "undefined" && TURNOS_DIA[Math.floor(i / 5)]) || turnosFallback[Math.floor(i / 5)];
+        const estaLibre = disp.has(i);
+
         const bloque = document.createElement("button");
         bloque.type = "button";
-        bloque.className = `franja-bloque ${disp.has(i) ? "activa" : ""}`;
-        bloque.title = `${DIAS_SEMANA[i % 5]} · ${TURNOS_DIA[Math.floor(i / 5)]}`;
+        bloque.className = `franja-bloque ${estaLibre ? "activa" : ""}`;
+        bloque.setAttribute("aria-pressed", String(estaLibre));
+        bloque.title = `${dia} · ${turno} — ${estaLibre ? "Disponible" : "No marcado"}`;
+        bloque.innerHTML = `
+          <span class="franja-dia">${dia}</span>
+          <span class="franja-turno">${turno}</span>
+          <span class="franja-estado">${estaLibre ? "Libre ✓" : "Marcar"}</span>
+        `;
+
         bloque.addEventListener("click", async () => {
           if (disp.has(i)) {
             disp.delete(i);
@@ -423,6 +437,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           renderPerfil();
           await actualizarCuentaRemota(u);
         });
+
         grillaDispPerfil.appendChild(bloque);
       }
     }
